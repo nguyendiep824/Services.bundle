@@ -148,9 +148,17 @@ def GetSMIL(url):
   except:
     raise Ex.MediaExpired
 
-  SMIL_URL = RE_MEDIA_URL.search(content).group(1)
   html = HTML.ElementFromString(content)
-  blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
+  #SMIL_URL = RE_MEDIA_URL.search(content).group(1)
+  #html = HTML.ElementFromString(content)
+  #blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
+  try:
+    SMIL_URL = RE_MEDIA_URL.search(content).group(1)
+    blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
+  except:
+    blocked = ''
+    try: SMIL_URL = html.xpath('//@data-release-url')[0].split('?')[0]
+    except: raise Ex.MediaNotAvailable
 
   if blocked=='true':
     raise Ex.MediaNotAuthorized
