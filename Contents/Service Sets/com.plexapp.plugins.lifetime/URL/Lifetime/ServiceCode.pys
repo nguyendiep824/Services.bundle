@@ -92,9 +92,6 @@ def PlayVideo(url, res, **kwargs):
 
   url = URLService.NormalizeURL(url)
 
-  #smil_url = GetSMIL(url)
-  #signature = HTTP.Request(SIGNATURE_URL % String.Quote(smil_url)).content
-  #smil_url = '%s%s&sig=%s' %(smil_url, SMIL_DETAILS, signature)
   smil_url = GetSMIL(url) + SMIL_DETAILS
   sig = sign_url(smil_url)
   smil_url = '%s&sig=%s' % (smil_url, sig)
