@@ -56,17 +56,15 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, bitrate, **kwargs):
 
     xml_data = GetVideoXML(url)
-    (video_url, available_versions, available_bitrates) = (None, [], [])
+    (video_url, available_bitrates) = (None, [], [])
     
     for version in xml_data.xpath('//files/file/@bitrate'):
         if version.endswith('k_mp4'):
             vid_bitrate = version.split('_')[1].split('k')[0]
             available_bitrates.append(vid_bitrate)
     closest = min((abs((bitrate*1000) - int(i)), int(i)) for i in available_bitrates)[1]
-    Log('the value of closest is %s' %closest)
     try:
         video_url = BASE_URL+xml_data.xpath('//files/file[contains(@bitrate, "%sk_mp4")]/text()' %closest)[0]
-        Log('the value of video_url is %s' %video_url)
         return IndirectResponse(VideoClipObject, key=video_url)
     except: raise Ex.MediaNotAvailable
 
