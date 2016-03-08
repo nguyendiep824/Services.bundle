@@ -8,7 +8,7 @@
 		<dict>
 			<key>URLPatterns</key>
 			<array>
-				<string>^(?!.*(flashLive|cvptve|cvplive|/shows/))http://(www\.|edition\.)?cnn\.com/video/.+</string>
+				<string>^http://(www|money|edition).cnn.com/videos?/.+/\d{4}/\d{2}/\d{2}/.+</string>
 			</array>
 		</dict>
 	</dict>
