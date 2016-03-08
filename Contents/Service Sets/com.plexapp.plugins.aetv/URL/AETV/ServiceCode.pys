@@ -1,3 +1,6 @@
+from hashlib import sha1
+import binascii, hmac
+
 RE_MEDIA_URL = Regex("var media_url = '(.+?)';", Regex.DOTALL)
 RE_BASE = Regex('meta base="(rtmp.+)"')
 
@@ -6,7 +9,6 @@ SMIL_DETAILS = '?assetTypes=medium_video_ak&formats=m3u,mpeg4&format=SMIL'
 RESOLUTIONS = ['540','432','404','360']
 
 AudioStreamObject.language_code = Locale.Language.English
-SIGNATURE_URL = 'http://servicesaetn-a.akamaihd.net/jservice/video/components/get-signed-signature?url=%s'
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -91,9 +93,9 @@ def PlayVideo(url, res, **kwargs):
 
   url = URLService.NormalizeURL(url)
 
-  smil_url = GetSMIL(url)
-  signature = HTTP.Request(SIGNATURE_URL % String.Quote(smil_url)).content
-  smil_url = '%s%s&sig=%s' %(smil_url, SMIL_DETAILS, signature)
+  smil_url = GetSMIL(url) + SMIL_DETAILS
+  sig = sign_url(smil_url)
+  smil_url = '%s&sig=%s' % (smil_url, sig)
 
   smil = XML.ElementFromURL(smil_url)
   index = RESOLUTIONS.index(res)
@@ -147,7 +149,8 @@ def GetSMIL(url):
   except:
     raise Ex.MediaExpired
 
-  SMIL_URL = RE_MEDIA_URL.search(content).group(1)
+  try: SMIL_URL = RE_MEDIA_URL.search(content).group(1)
+  except: raise Ex.MediaNotAvailable
   html = HTML.ElementFromString(content)
   blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
 
@@ -164,7 +167,7 @@ def sign_url(url):
   hmac_key = 'crazyjava'
   SEC_HEX = '733363723374' #'s3cr3t'
   expiration = get_expiration()
-  path = url.split('http://link.theplatform.com/s/')[1].split('?')[0]
+  path = url.split('link.theplatform.com/s/')[1].split('?')[0]
   sign_data = binascii.unhexlify('00'+expiration+binascii.hexlify(path).lower())
   sig = hmac.new(hmac_key, sign_data, sha1)
   sigHEX = sig.hexdigest()
