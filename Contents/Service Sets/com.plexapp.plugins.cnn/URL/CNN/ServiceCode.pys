@@ -56,7 +56,7 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, bitrate, **kwargs):
 
     xml_data = GetVideoXML(url)
-    (video_url, available_bitrates) = (None, [], [])
+    (video_url, available_bitrates) = (None, [])
     
     for version in xml_data.xpath('//files/file/@bitrate'):
         if version.endswith('k_mp4'):
