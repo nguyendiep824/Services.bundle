@@ -163,17 +163,6 @@ def PlayVideo(media_selector_url='', **kwargs):
         raise Ex.MediaGeoblocked
 
     hls_url = GetMaxBitrateURL(stream_details)
-    
-    try:
-        headers = HTTP.Request(hls_url).headers
-
-    except Ex.HTTPError, e:
-        if e.code == 403:
-            raise Ex.MediaGeoblocked
-        else:
-            raise Ex.MediaNotAvailable
-    except:
-        raise Ex.MediaNotAvailable
         
     return IndirectResponse(
         VideoClipObject, key=HTTPLiveStreamURL(url=hls_url)
