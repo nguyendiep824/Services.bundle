@@ -159,8 +159,18 @@ def GetHLSStreams(url):
         elif ".m3u8" in line:
             path = ''
             if not line.startswith("http"):
-                path = url[ : url.rfind('/') + 1]
+                try:
+                    link = url.split("?")[0]
+                except:
+                    pass
+                
+                path = link[ : link.rfind('/') + 1]
 
+            try:
+                line = line.split("?")[0]
+            except:
+                pass
+            
             try:
                 stream["url"] = path + line
                 streams.append(stream)
