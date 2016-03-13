@@ -3,14 +3,6 @@ HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_2) A
 RE_PID = Regex('iplayer/episode/([^/$]{8})')
 RE_VPID = Regex('"vpid" *: *"(.+?)"')
 
-HLS_CLIENTS = ['Android', 'iOS', 'Roku', 'Safari', 'tvOS', 'Mystery 4']
-
-STREAMS = {
-    1080: int(8582000/1024),
-    720: int(5476000/1024),
-    540: int(3083000/1024),
-    360: int(832000/1024)
-}
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -135,34 +127,31 @@ def MediaObjectsForURL(url):
     except:
         raise Ex.MediaNotAvailable
 
-    media_selector_url = 'http://open.live.bbc.co.uk/mediaselector/5/select/version/2.0/format/json/mediaset/apple-ipad-hls/vpid/%s' % (vpid)
+    media_selector_url = 'http://open.live.bbc.co.uk/mediaselector/5/select/version/2.0/format/json/mediaset/iptv-all/vpid/%s' % (vpid)
 
-    mo = []
-    for resolution in reversed(sorted(STREAMS)):
-        mo.append(
-            MediaObject(
-                protocol = 'hls',
-                container = 'mpegts',
-                video_codec = VideoCodec.H264,
-                video_resolution = resolution,
-                bitrate = STREAMS[resolution],
-                audio_codec = AudioCodec.AAC,
-                video_frame_rate = 25,
-                audio_channels = 2,
-                optimized_for_streaming = True,
-                parts = [
-                    PartObject(
-                        key = Callback(PlayVideo, post_url=media_selector_url, media_selector_url=media_selector_url, vpid=vpid, resolution=resolution, ext='m3u8')
-                    )
-                ]
-            )
+    return [
+        MediaObject(
+            protocol = 'hls',
+            container = 'mpegts',
+            video_codec = VideoCodec.H264,
+            video_resolution = '720',
+            audio_codec = AudioCodec.AAC,
+            video_frame_rate = 25,
+            audio_channels = 2,
+            optimized_for_streaming = True,
+            parts = [
+                PartObject(
+                    key = Callback(PlayVideo, post_url=media_selector_url, media_selector_url=media_selector_url, ext='m3u8')
+                )
+            ]
         )
+    ]
     
     return mo
 
 ####################################################################################################
 @indirect
-def PlayVideo(media_selector_url='', vpid='', resolution='1080', **kwargs):
+def PlayVideo(media_selector_url='', **kwargs):
 
     if media_selector_url == '':
         raise Ex.MediaNotAvailable
@@ -173,138 +162,43 @@ def PlayVideo(media_selector_url='', vpid='', resolution='1080', **kwargs):
     except:
         raise Ex.MediaGeoblocked
 
-    url = GetMaxBitrateURL(stream_details, 'hls')
-    hls_url = None
-    geoblock = False
+    hls_url = GetMaxBitrateURL(stream_details)
+    
+    try:
+        headers = HTTP.Request(hls_url).headers
 
-    if url:
-        hls_url = '%s/master.m3u8' % (url[:url.rfind('/')])
-
-        try:
-            headers = HTTP.Request(hls_url).headers
-
-        except Ex.HTTPError, e:
-            if e.code == 403:
-                hls_url = url
-                geoblock = True
-            else:
-                raise Ex.MediaNotAvailable
-
-        except:
-            try:
-                stream_details = JSON.ObjectFromURL('http://open.live.bbc.co.uk/mediaselector/5/select/version/2.0/format/json/mediaset/pc/vpid/%s' % (vpid), cacheTime=0)
-
-                id = GetMaxBitrateURL(stream_details, 'rtmp')
-
-                if not id in url:
-                    hls_url = url.replace(',.mp4.csmil', id + ',.mp4.csmil').replace('*~hmac', id + '*~hmac')
-
-            except:
-                hls_url = url
-    else:
+    except Ex.HTTPError, e:
+        if e.code == 403:
+            raise Ex.MediaGeoblocked
+        else:
+            raise Ex.MediaNotAvailable
+    except:
         raise Ex.MediaNotAvailable
-
-    if Client.Platform in HLS_CLIENTS or geoblock:
-        # These clients can handle HLS properly
-        return IndirectResponse(
-            VideoClipObject, key=HTTPLiveStreamURL(url=hls_url)
-        )
-    else:
-        # Other clients have problems if returning the original URL:
-        # - Plex/Web: 'No playable sources found'
-        # - Chromecast: PMS is selecting a low res variant when remuxing for CC
-        streams = GetHLSStreams(hls_url)
-
-        min_resolution_diff = 1000000000 # some huge number to get it started
-        hls_url = streams[0]['url'] # Fallback url = max bitrate url
-
-        nearest_resolution = resolution
-        for stream in streams:
-            diff = abs(int(resolution) - stream['resolution'])
-
-            if diff < min_resolution_diff:
-                min_resolution_diff = diff
-                nearest_resolution = stream['resolution']
-
-        # Find url with highest bitrate for wanted resolution
-        # There are usually at least 3 different versions per resolution
-        # and the difference between them are the audio bitrate(96, 128, 320 etc)
-        # We'll always choose the highest audio bitrate variant
-        max_bitrate_found = 0
-        for stream in streams:
-            if nearest_resolution == stream['resolution']:
-                if stream['bitrate'] > max_bitrate_found:
-                    hls_url = stream['url']
-
-        return IndirectResponse(
-            VideoClipObject, key=HTTPLiveStreamURL(url=hls_url)
-        )
+        
+    return IndirectResponse(
+        VideoClipObject, key=HTTPLiveStreamURL(url=hls_url)
+    )
 
 ####################################################################################################
-def GetMaxBitrateURL(stream_details, transfer_format):
+def GetMaxBitrateURL(stream_details):
 
     max_bitrate_found = 0
+    priority = 1000000 # Some huge number to get it started
     url = None
 
     if 'media' not in stream_details:
         return url
 
     for media in stream_details['media']:
-
         if media['kind'] == 'video':
             if int(media['bitrate']) > max_bitrate_found:
-
                 for connection in media['connection']:
-                    if 'akamai' in connection['supplier']:
-
-                        if transfer_format == 'hls':
-                            if 'transferFormat' in connection:
-                                if 'hls' in connection['transferFormat']:
-                                    url = connection['href']
-                                    max_bitrate_found = int(media['bitrate'])
-
-                        else:
-                            if 'protocol' in connection:
-                                if 'rtmp' in connection['protocol']:
-                                    url = connection['identifier'].replace('mp4:iplayerstream/secure_auth/', ',').replace('.mp4', '').replace('mp4:secure/', ',')
-                                    max_bitrate_found = int(media['bitrate'])
+                    if (int(connection['priority']) < priority) and ('transferFormat' in connection and 'hls' in connection['transferFormat']):
+                        url = connection['href']
+                        max_bitrate_found = int(media['bitrate'])
+                        priority = int(connection['priority'])
 
     return url
-
-####################################################################################################
-def GetHLSStreams(url):
-
-    streams = []
-
-    playList = HTTP.Request(url).content
-
-    # Parse the m3u8 file to get:
-    # - URL
-    # - Resolution
-    # - Bitrate
-    for line in playList.splitlines():
-        if 'BANDWIDTH' in line:
-            stream = {}
-            stream['bitrate'] = int(Regex('(?<=BANDWIDTH=)[0-9]+').search(line).group(0))
-
-            if 'RESOLUTION' in line:
-                stream['resolution'] = int(Regex('(?<=RESOLUTION=)[0-9]+x[0-9]+').search(line).group(0).split('x')[1])
-            else:
-                stream['resolution'] = 0
-
-        elif '.m3u8' in line:
-            path = ''
-
-            if not line.startswith('http'):
-                path = url[ : url.rfind('/') + 1]
-
-            stream['url'] = path + line
-
-            streams.append(stream)
-
-    sorted_streams = sorted(streams, key=lambda stream: stream['bitrate'], reverse=True)
-
-    return sorted_streams
 
 ####################################################################################################
 def TestURLs():
