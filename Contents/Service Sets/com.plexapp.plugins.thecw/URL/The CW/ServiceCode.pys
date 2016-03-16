@@ -1,8 +1,5 @@
 DETAILS_URL = 'http://metaframe.digitalsmiths.tv/v2/CWtv/assets/%s/partner/132?format=json'
-BITRATES = [300, 500, 700, 900]
 BASE_URL = 'http://www.cwtv.com'
-
-CW_SWF = 'http://pdl.warnerbros.com/cwtv/digital-smiths/production_player/vsplayer.swf'
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -19,13 +16,13 @@ def MetadataObjectForURL(url):
 
 	video = data['assetFields']
 
-	epTitle = video['title']
+	episode_title = video['title']
 	show = video['seriesName']
 
 	try:
-		epIndex = int(video['episodeNumber'])
+		episode_index = int(video['episodeNumber'])
 	except:
-		epIndex = None
+		episode_index = None
 
 	try:
 		season = int(video['seasonNumber'])
@@ -50,11 +47,12 @@ def MetadataObjectForURL(url):
 
 	thumb = GetThumb(url)
 
-	if video['contentType'] == "Full Episodes":    
+	if video['contentType'] == "Full Episodes":
+
 		return EpisodeObject(
-			title = epTitle,
+			title = episode_title,
 			show = show,
-			index = epIndex,
+			index = episode_index,
 			season = season,
 			summary = summary,
 			rating = rating,
@@ -62,9 +60,11 @@ def MetadataObjectForURL(url):
 			duration = duration,
 			thumb = Resource.ContentsOfURLWithFallback(thumb)
 		)
+
 	else:
+
 		return VideoClipObject(
-			title = epTitle,
+			title = episode_title,
 			summary = summary,
 			rating = rating,
 			originally_available_at = date,
@@ -75,55 +75,26 @@ def MetadataObjectForURL(url):
 ####################################################################################################
 def MediaObjectsForURL(url):
 
-	media_objects = []
-
-	for value in reversed(BITRATES):
-		media_objects.append(
-			MediaObject(
-				bitrate = value,
-				protocol = 'rtmp',
-				parts = [
-					PartObject(key=Callback(PlayVideo, url=url, bitrate=value))
-				]
-			)
+	return [
+		MediaObject(
+			video_resolution = 720,
+			audio_channels = 2,
+			parts = [
+				PartObject(
+					key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
+				)
+			]
 		)
-
-	return media_objects
+	]
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, bitrate, **kwargs):
+def PlayVideo(url, **kwargs):
 
-	available_bitrates = []
-	rtmp_url = None
-	videos = GetDetails(url)['videos']
+	data = GetDetails(url)
+	video_url = data['videos']['variantplaylist']['uri']
 
-	for video in videos:
-
-		if videos[video]['bitrate'] == 'variable':
-			continue
-
-		available_bitrates.append(int(videos[video]['bitrate']))
-
-	closest = min((abs(int(bitrate) - int(i)), i) for i in available_bitrates)[1]
-
-	for video in videos:
-
-		if videos[video]['bitrate'] == 'variable':
-			continue
-
-		if closest == int(videos[video]['bitrate']):
-			rtmp_url = videos[video]['uri']
-			break
-
-	if rtmp_url:
-		rtmp_parts = rtmp_url.partition('mp4:')
-		player = rtmp_parts[0]
-		playpath = rtmp_parts[1] + rtmp_parts[2]
-
-		return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=player, clip=playpath, swf_url=CW_SWF))
-	else:
-		raise Ex.MediaNotAvailable
+	return IndirectResponse(VideoClipObject, key=video_url)
 
 ####################################################################################################
 def GetDetails(url):
@@ -154,7 +125,9 @@ def GetThumb(url):
 	width = 0
 
 	for key in images.keys():
+
 		if images[key]['width'] > width:
+
 			thumb = images[key]['uri']
 			width = images[key]['width']
 
