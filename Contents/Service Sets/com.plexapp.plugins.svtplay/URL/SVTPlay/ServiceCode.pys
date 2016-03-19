@@ -77,15 +77,15 @@ def GetVideoData(url):
         for channel in json:
             if channel['title'] in url:
                 break
-        
-        data['title'] = channel['schedule'][0]['description']
+
+        data['title'] = channel['schedule'][0]['title']
         data['summary'] = channel['schedule'][0]['description'] if 'description' in channel['schedule'][0] else None
         data['show'] = channel['schedule'][0]['programTitle'] if 'programTitle' in channel['schedule'][0] else channel['name']
         data['duration'] = channel['schedule'][0]['materialLength'] * 1000 if 'materialLength' in channel['schedule'][0] else None
         data['index'] = channel['schedule'][0]['episodeNumber'] if 'episodeNumber' in channel['schedule'][0] else None
         data['season'] = channel['schedule'][0]['season'] if 'season' in channel['schedule'][0] else None
         data['thumb'] = channel['schedule'][0]['titlePage']['thumbnailXLImax'] if 'titlePage' in channel['schedule'][0] else 'http://www.svtplay.se/public/images/channels/posters/%s.png' % channel['title']
-        data['art'] = channel['schedule'][0]['titlePage']['posterXLImax'] if 'titlePage' in channel['schedule'][0] else None
+        data['art'] = channel['schedule'][0]['titlePage']['posterXLImax'] if 'titlePage' in channel['schedule'][0] and 'posterXLImax' in channel['schedule'][0]['titlePage'] else None
         data['date'] = Datetime.Now().date()
         data['videoReferences'] = channel['videoReferences']
 
