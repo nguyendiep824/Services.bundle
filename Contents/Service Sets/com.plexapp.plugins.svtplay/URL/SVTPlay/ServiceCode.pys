@@ -89,7 +89,7 @@ def GetVideoData(url):
         data['date'] = Datetime.Now().date()
         data['videoReferences'] = channel['videoReferences']
 
-    else:
+    elif 'svtplay' in url:
         page = HTML.ElementFromURL(url)
         id = page.xpath("//*[@data-id]/@data-id")[0]
         json = JSON.ObjectFromURL('http://www.svt.se/play4api/video/' + id)
@@ -104,5 +104,61 @@ def GetVideoData(url):
         data['art'] = json['posterXLImax'] if 'posterXLImax' in json else None
         data['date'] = Datetime.FromTimestamp(json['broadcastDate']/1000).date() if 'broadcastDate' in json else None
         data['videoReferences'] = json['videoReferences']
+    
+    else:
+        # Öppet arkiv
+        page = HTML.ElementFromURL(url)
+        show = None
+        title = page.xpath('//meta[@property="og:title"]/@content')[0].split(' | ')[0].replace('&amp;', '&')
+        title = String.DecodeHTMLEntities(title)
+    
+        if ' - ' in title:
+            (show, title) = title.split(' - ', 1)
+    
+        summary = page.xpath('//meta[@property="og:description"]/@content')[0].replace('&amp;', '&')
+        summary = String.DecodeHTMLEntities(summary)
+        thumb = page.xpath('//meta[@property="og:image"]/@content')
+    
+        if len(thumb) < 1:
+            thumb = None
+        else:
+            thumb = thumb[0].replace('/small/', '/large/')
+    
+        try:
+            air_date = page.xpath('//div[@class="playBoxConnectedToVideoMain"]//time/@datetime')[0].split('T')[0]
+            air_date = Datetime.ParseDate(air_date).date()
+        except:
+            air_date = None
+    
+        # Airdate for Öppet Arkiv
+        if air_date == None:
+            try:
+                air_date = page.xpath("//span[@class='svt-video-meta']//time/@datetime")[0].split('T')[0]
+                air_date = Datetime.ParseDate(air_date).date()
+            except:
+                air_date = None
+    
+        try:
+            duration = page.xpath("//a[@id='player']/@data-length")
+            duration = int(duration[0]) * 1000
+        except:
+            duration = None
+            pass
+    
+        if "?" in url:
+            json_obj = JSON.ObjectFromURL(url + '&output=json')
+        else:
+            json_obj = JSON.ObjectFromURL(url + '?output=json')
+    
+        data['title'] = title
+        data['summary'] = summary
+        data['show'] = show
+        data['duration'] = duration
+        data['index'] = None
+        data['season'] = None
+        data['thumb'] = thumb
+        data['art'] = None
+        data['date'] = air_date
+        data['videoReferences'] = json_obj['video']['videoReferences']
         
     return data
