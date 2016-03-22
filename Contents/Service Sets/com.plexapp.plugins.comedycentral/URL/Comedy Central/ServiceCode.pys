@@ -4,9 +4,6 @@ NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
 RE_FIX_XML = Regex('(<!--.*?-->)')
 RE_BITRATE = Regex('_\d+x\d+_(\d+).*\.mp4')
 
-MediaObject.audio_channels = 2
-MediaObject.optimized_for_streaming = True
-
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -165,7 +162,9 @@ def MediaObjectsForURL(url):
 			MediaObject(
 				parts = parts,
 				bitrate = bitrate,
-				video_resolution = video_resolution
+				video_resolution = video_resolution,
+				audio_channels = 2,
+				optimized_for_streaming = True
 			)
 		)
 
