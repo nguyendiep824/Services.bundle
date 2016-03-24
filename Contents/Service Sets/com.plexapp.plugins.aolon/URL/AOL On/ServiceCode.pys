@@ -5,12 +5,6 @@ RE_VIDEO_ID = Regex('(videoid=|playlist=|/episode/)(?P<video_id>\d+)', Regex.IGN
 RE_VIDEO_URL = Regex('videoUrl=(?P<video_url>[^&]+)')
 RE_SID = Regex('embed\.5min\.com.+(\?|&(amp;)?)sid=(?P<sid>\d+)')
 
-MediaObject.container = Container.MP4
-MediaObject.video_codec = VideoCodec.H264
-MediaObject.audio_codec = AudioCodec.AAC
-MediaObject.audio_channels = 2
-MediaObject.optimized_for_streaming = True
-
 HTTP.CacheTime = CACHE_1WEEK
 
 ####################################################################################################
@@ -68,6 +62,8 @@ def MediaObjectsForURL(url):
 
 	return [
 		MediaObject(
+			audio_channels = 2,
+			optimized_for_streaming = True,
 			parts = [
 				PartObject(
 					key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
