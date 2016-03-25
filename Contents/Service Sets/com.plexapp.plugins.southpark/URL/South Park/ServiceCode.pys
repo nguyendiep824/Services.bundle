@@ -6,9 +6,6 @@ RE_URI = Regex('swfobject.embedSWF\("http://.+?/(mgid.+?)",')
 RE_AMPERSANDS = Regex('&(?!amp;)')
 RE_BITRATE = Regex('_(\d+)(?:kbps)?\.mp4')
 
-MediaObject.audio_channels = 2
-MediaObject.optimized_for_streaming = True
-
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -162,7 +159,8 @@ def MediaObjectsForURL(url):
 			MediaObject(
 				parts = parts,
 				bitrate = bitrate,
-				video_resolution = video_resolution
+				video_resolution = video_resolution,
+				audio_channels = 2
 			)
 		)
 
