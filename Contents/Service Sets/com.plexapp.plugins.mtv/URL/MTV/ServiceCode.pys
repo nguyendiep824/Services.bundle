@@ -35,10 +35,25 @@ def MetadataObjectForURL(url):
 
     title = html.xpath('//meta[@property="og:title"]/@content')[0]
     summary = html.xpath('//meta[@property="og:description"]/@content')[0]
-    thumb = html.xpath('//meta[@property="og:image"]/@content')[0].split('?')[0]
+
+    thumb = html.xpath('//meta[@property="og:image"]/@content')
+    if len(thumb) > 0:
+        thumb = thumb[0].split('?')[0]
+    else:
+        thumb = ''
+
     duration = 0
 
     data = GetRSS(url)
+
+    if thumb == '':
+        thumb = data.xpath('//media:thumbnail/@url', namespaces=NAMESPACES)
+
+        if len(thumb) > 0:
+            thumb = thumb[0].split('?')[0]
+        else:
+            thumb = ''
+
     media_urls = data.xpath('//media:content[@medium="video"]', namespaces=NAMESPACES)
 
     for segment in media_urls:
