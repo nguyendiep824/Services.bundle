@@ -163,8 +163,7 @@ def MediaObjectsForURL(url):
 				parts = parts,
 				bitrate = bitrate,
 				video_resolution = video_resolution,
-				audio_channels = 2,
-				optimized_for_streaming = True
+				audio_channels = 2
 			)
 		)
 
