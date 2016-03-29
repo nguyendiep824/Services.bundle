@@ -161,6 +161,8 @@ def MediaObjectsForURL(url):
 		media_objects.append(
 			MediaObject(
 				parts = parts,
+				video_codec = VideoCodec.H264,
+				audio_codec = AudioCodec.AAC,
 				bitrate = bitrate,
 				video_resolution = video_resolution,
 				audio_channels = 2
