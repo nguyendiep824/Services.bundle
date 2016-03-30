@@ -20,9 +20,9 @@ def MetadataObjectForURL(url):
     title = json['name']
     summary = json['description']
     thumb = json['image'] if 'image' in json else None
-    index = int(json['episodeNumber'])    
+    index = int(json['episodeNumber']) if json['episodeNumber'] is not None else None
     show = json['partOfSeries']['name']
-    season = int(json['partOfSeason']['seasonNumber'])
+    season = int(json['partOfSeason']['seasonNumber']) if json['partOfSeason']['seasonNumber'] is not None else None
     originally_available_at = Datetime.ParseDate(json['releasedEvent']['startDate'])
 
     return EpisodeObject(
@@ -34,7 +34,7 @@ def MetadataObjectForURL(url):
         season = season,
         originally_available_at = originally_available_at
     )
-    
+
 ###########################################################################################
 @deferred
 def MediaObjectsForURL(url):
@@ -57,7 +57,7 @@ def MediaObjectsForURL(url):
         if str(episode_id) != str(episode['id']):
             continue
 
-        data = HTML.ElementFromURL(url = episode['videoURL'] + '&manifest=m3u') 
+        data = HTML.ElementFromURL(url = episode['videoURL'] + '&manifest=m3u')
         video_url = data.xpath("//video/@src")
 
         if len(video_url) < 1:
@@ -82,8 +82,8 @@ def MediaObjectsForURL(url):
                             key = HTTPLiveStreamURL(url = video_url[0])
                         )
                     ],
-                )   
-            ]        
+                )
+            ]
         else:
             return [
                 MediaObject(
@@ -101,7 +101,7 @@ def MediaObjectsForURL(url):
                             )
                         )
                     ],
-                ) for video_resolution in ['720', '576', '360', '270', '226']   
+                ) for video_resolution in ['720', '576', '360', '270', '226']
             ]
 
     raise Ex.MediaNotAvailable
@@ -119,7 +119,7 @@ def PlayVideo(url, video_resolution = '720', **kwargs):
 ##########################################################################################
 def GetSpecificResolutionURL(url, video_resolution):
 
-    streams = GetHLSStreams(url)            
+    streams = GetHLSStreams(url)
     hls_url = None
 
     min_diff_found = 10000000 # Some huge number to get it started
