@@ -8,7 +8,7 @@
 		<dict>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http://www\.twitch\.tv/[^/]+$</string>
+				<string>^https?://www\.twitch\.tv/[^/]+$</string>
 			</array>
 		</dict>
 	</dict>
