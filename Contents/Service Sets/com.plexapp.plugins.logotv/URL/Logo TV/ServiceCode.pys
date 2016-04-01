@@ -6,9 +6,6 @@ URI_FORMAT = 'mgid:uma:videolist:logotv.com:%s'
 
 RE_RES_BIT = Regex('x(\d+)_(\d+)_?[^._]*\.(mp4|flv)')
 
-MediaObject.audio_channels = 2
-MediaObject.optimized_for_streaming = True
-
 ####################################################################################################
 def MetadataObjectForURL(url):
 
@@ -136,7 +133,10 @@ def MediaObjectsForURL(url):
             MediaObject(
                 parts = parts,
                 bitrate = bitrate,
-                video_resolution = video_resolution
+                video_resolution = video_resolution,
+                audio_channels = 2,
+                video_codec = VideoCodec.H264,
+                audio_codec = AudioCodec.AAC
             )
         )
 
