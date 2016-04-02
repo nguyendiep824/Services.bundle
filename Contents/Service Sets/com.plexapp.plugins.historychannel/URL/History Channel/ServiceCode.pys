@@ -6,7 +6,6 @@ RE_BASE = Regex('meta base="(rtmp.+)"')
 
 SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
 SMIL_DETAILS = '?assetTypes=medium_video_ak&formats=m3u,mpeg4&format=SMIL'
-RESOLUTIONS = ['540','432','360']
 
 AudioStreamObject.language_code = Locale.Language.English
 ####################################################################################################
