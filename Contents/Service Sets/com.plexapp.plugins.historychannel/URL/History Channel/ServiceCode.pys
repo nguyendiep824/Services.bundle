@@ -1,128 +1,168 @@
-SHOWS_URL = 'http://wombatapi.aetv.com/shows2/history'
-EPISODES_URL = 'http://mediaservice.aetndigital.com/SDK_v2/show_titles/episode/history?show_name=%s'
-SIGNATURE_URL = 'http://servicesaetn-a.akamaihd.net/jservice/video/components/get-signed-signature?url=%s'
-SMIL_NS = {"a":"http://www.w3.org/2005/SMIL21/Language"}
-RE_SHOW_VIA_URL = Regex('shows\/(.+)\/videos')
-RE_SHOW_VIA_IMAGE = Regex('\/History_(.+)_[0-9]+_')
-HEADERS = {'User-Agent' : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11) AppleWebKit/601.1.56 (KHTML, like Gecko) Version/9.0 Safari/601.1.56'}
+from hashlib import sha1
+import binascii, hmac
+
+RE_MEDIA_URL = Regex("var media_url = '(.+?)';", Regex.DOTALL)
+RE_BASE = Regex('meta base="(rtmp.+)"')
+
+SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
+SMIL_DETAILS = '?assetTypes=medium_video_ak&formats=m3u,mpeg4&format=SMIL'
+RESOLUTIONS = ['540','432','360']
 
 AudioStreamObject.language_code = Locale.Language.English
-
 ####################################################################################################
 def NormalizeURL(url):
 
-    return url.split('?')[0]
-
-####################################################################################################
-def MetadataObjectForURL(url):
-
-    episode_data = GetEpisodeData(url) 
-
-    return EpisodeObject(
-        title = episode_data['title'],
-        summary = episode_data['description'],
-        thumb = episode_data['thumbnailImage2xURL'] if 'thumbnailImage2xURL' in episode_data else None,
-        show = episode_data['seriesName'],
-        duration = episode_data['totalVideoDuration'],
-        originally_available_at = Datetime.ParseDate(episode_data['originalAirDate'].split('T')[0]).date() if 'originalAirDate' in episode_data else None,
-        index = int(episode_data['episode']) if 'episode' in episode_data else None,
-        season = int(episode_data['season']) if 'season' in episode_data else None
-    )
-
-
-####################################################################################################
-@deferred
-def MediaObjectsForURL(url):
-    
-    episode_data = GetEpisodeData(url)    
-    unsigned_smil_url = episode_data['playURL_HLS'].split('?')[0]
-    signature = HTTP.Request(SIGNATURE_URL % String.Quote(unsigned_smil_url)).content
-    smil_url = '%s?switch=hls&assetTypes=medium_video_ak&mbr=true&metafile=true&sig=%s' % (unsigned_smil_url, signature)
-    smil = XML.ElementFromURL(smil_url)
-
-    # Check for expired
-    expired = smil.xpath('//*[@*[contains(., "Expired") or contains(., "expired")]]')
-    if len(expired) > 0:
-        raise Ex.MediaExpired
-    
-    max_resolution = 0
-    hls_url = None
-    for video in smil.xpath('//a:video', namespaces=SMIL_NS):
-        try:
-            resolution = int(video.get('height'))
-        except:
-            continue
-        
-        if resolution > max_resolution:
-            max_resolution = resolution
-            hls_url = video.get('src')
-    
-    return [
-        MediaObject(
-            video_resolution = max_resolution,
-            audio_channels = 2,
-            optimized_for_streaming = True,
-            parts = [PartObject(key = HTTPLiveStreamURL(hls_url))]
-        )
-    ]
-
-##########################################################################################
-def GetEpisodeData(url):
-    
-    # First try using url
-    try:
-        show = RE_SHOW_VIA_URL.search(url).groups()[0]
-        show_id = show.replace('-', ' ').title()
-    except:
-        raise Ex.MediaNotAvailable
-    
-    json_data = JSON.ObjectFromURL(EPISODES_URL % String.Quote(show_id), headers=HEADERS, cacheTime=CACHE_1HOUR)
-        
-    if len(json_data['Items']) < 1:
-        # ... else, try to find the data via twitter tag
-        try:
-            element = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR)
-        except:
-            raise Ex.MediaNotAvailable
-        
-        show_id = None
-        try:
-            show_twitter_hash = element.xpath("//*[@id='twitter-hash']/text()")[0].strip()
-            shows_data = JSON.ObjectFromURL(SHOWS_URL, headers=HEADERS, cacheTime=CACHE_1HOUR)
-    
-            for show in shows_data:
-                if show['twitterTag'].lower().replace("#", "") == show_twitter_hash.lower().replace("#", ""):
-                    show_id = show['showID']
-                    break
-        except:
-            # else, final chance: try via image url
-            try:
-                thumb = element.xpath('//meta[@property="og:image"]/@content')[0]
-                show_id = RE_SHOW_VIA_IMAGE.search(thumb).groups()[0].replace('-',' ')
-            except:
-                pass
-    
-        if not show_id:
-            raise Ex.MediaNotAvailable
-
-        json_data = JSON.ObjectFromURL(EPISODES_URL % String.Quote(show_id), headers=HEADERS, cacheTime=CACHE_1HOUR)
-
-    for item in json_data['Items']:
-        if item['siteUrl'] == url:
-            return item
-
-    raise Ex.MediaNotAvailable
+  return url.split('?')[0]
 
 ####################################################################################################
 def TestURLs():
 
   test_urls = []
-  data = HTML.ElementFromURL('http://www.history.com/shows/pawn-stars/videos')
+  data = HTML.ElementFromURL('http://www.aetv.com/video')
 
-  for url in data.xpath('//li[contains(@class,"slider-item")]//a[starts-with(@data-href, "http")]/@data-href'):
+  for url in data.xpath('//ul[contains(@class,"full-episode-ul")]/li//a/@href'):
+    if not url.startswith('http:'):
+      url = 'http://www.aetv.com' + url
     test_urls.append(url)
 
     if len(test_urls) > 2:
       break
 
   return test_urls
+
+####################################################################################################
+def MetadataObjectForURL(url):
+
+  releaseURL = '%s?format=script' % GetSMIL(url)
+  data = JSON.ObjectFromURL(releaseURL)
+
+  thumb = data['defaultThumbnailUrl']
+  thumb_large = thumb.replace('_small.jpg', '_HD_768x432-16x9.jpg')
+
+  summary = data['description']
+  duration = data['duration']
+  date = Datetime.FromTimestamp(float(data['pubDate'])/1000).date()
+  content_rating = data['ratings'][0]['rating'] if len(data['ratings']) > 0 else None
+  title = data['title']
+
+  if data['AETN$mrssLengthType'] == "Episode":
+    show = data['history$seriesName']
+    index = int(data['AETN$episode']) if 'AETN$episode' in data else None
+
+    return EpisodeObject(
+      title = title,
+      show = show,
+      summary = summary,
+      absolute_index = index,
+      duration = duration,
+      originally_available_at = date,
+      content_rating = content_rating,
+      thumb = Resource.ContentsOfURLWithFallback([thumb_large, thumb])
+    )
+  else:
+    return VideoClipObject(
+      title = title,
+      summary = summary,
+      duration = duration,
+      originally_available_at = date,
+      content_rating = content_rating,
+      thumb = Resource.ContentsOfURLWithFallback(thumb)
+    )
+
+####################################################################################################
+def MediaObjectsForURL(url):
+
+  media_objects = []
+
+  for bitrate, resolution in [(1918, '540'), (1423, '432'), (1123, '360')]:
+    media_objects.append(
+      MediaObject(
+        parts = [
+          PartObject(
+            key=Callback(PlayVideo, url=url, bitrate=bitrate)
+          )
+        ],
+        protocol = 'hls',
+        container = 'mpegts',
+        video_resolution = resolution,
+        video_codec = VideoCodec.H264,
+        audio_channels = 2,
+        optimized_for_streaming = True,
+        audio_codec = AudioCodec.AAC
+      )
+    )
+
+  return media_objects
+
+####################################################################################################
+@indirect
+def PlayVideo(url, bitrate, **kwargs):
+
+  url = URLService.NormalizeURL(url)
+
+  smil_url = GetSMIL(url) + SMIL_DETAILS
+  sig = sign_url(smil_url)
+  smil_url = '%s&sig=%s' % (smil_url, sig)
+
+  smil = XML.ElementFromURL(smil_url)
+  video_url = None
+
+  if smil.xpath('//a:ref', namespaces=SMIL_NS)[0].get('title') == "Geographic Restriction":
+    raise Ex.MediaGeoblocked
+
+  available_versions = smil.xpath('//a:video/@system-bitrate', namespaces=SMIL_NS)
+  closest = min((abs((bitrate*1000) - int(i)), int(i)) for i in available_versions)[1]
+
+  video_url = smil.xpath('//a:video[@system-bitrate="%s"]/@src' % (closest), namespaces=SMIL_NS)[0]
+
+  # now if we still don't have a video_url bail
+  if not video_url:
+    raise Ex.MediaNotAvailable
+
+  if video_url.split('?')[0].endswith('m3u8'):
+    return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(video_url))
+  else:
+    Log('the value of video_url is %s' %video_url)
+    raise Ex.MediaNotAvailable
+
+####################################################################################################
+def GetSMIL(url):
+
+  try:
+    content = HTTP.Request(url).content.decode('utf8','replace')
+  except Ex.RedirectError, e:
+    raise Ex.MediaNotAvailable
+  except:
+    raise Ex.MediaExpired
+
+  try: SMIL_URL = RE_MEDIA_URL.search(content).group(1)
+  except: raise Ex.MediaNotAvailable
+  html = HTML.ElementFromString(content)
+  blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
+
+  if blocked=='true':
+    raise Ex.MediaNotAuthorized
+  else:
+    return SMIL_URL
+
+  raise Ex.MediaNotAvailable
+
+####################################################################################################
+def sign_url(url):
+
+  hmac_key = 'crazyjava'
+  SEC_HEX = '733363723374' #'s3cr3t'
+  expiration = get_expiration()
+  path = url.split('link.theplatform.com/s/')[1].split('?')[0]
+  sign_data = binascii.unhexlify('00'+expiration+binascii.hexlify(path).lower())
+  sig = hmac.new(hmac_key, sign_data, sha1)
+  sigHEX = sig.hexdigest()
+  signature = '00' + expiration + sigHEX + SEC_HEX
+  return signature
+
+####################################################################################################
+def get_expiration(auth_length=600):
+
+  current_time = Datetime.TimestampFromDatetime(Datetime.Now()) + auth_length
+  expiration = ('%0.2X' % current_time).lower()
+  return expiration
