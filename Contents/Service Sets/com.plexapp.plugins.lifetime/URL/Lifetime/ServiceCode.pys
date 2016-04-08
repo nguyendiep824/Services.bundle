@@ -6,10 +6,8 @@ RE_BASE = Regex('meta base="(rtmp.+)"')
 
 SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
 SMIL_DETAILS = '?assetTypes=medium_video_ak&formats=m3u,mpeg4&format=SMIL'
-RESOLUTIONS = ['720', '540', '432', '404', '360']
 
 AudioStreamObject.language_code = Locale.Language.English
-
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -73,22 +71,29 @@ def MediaObjectsForURL(url):
 
   media_objects = []
 
-  for res in RESOLUTIONS:
+  for bitrate, resolution in [(1918, '540'), (1423, '432'), (1123, '360')]:
     media_objects.append(
       MediaObject(
-        parts = [PartObject(key=Callback(PlayVideo, url=url, res=res))],
-          container = Container.MP4,
-          video_codec = VideoCodec.H264,
-          video_resolution = res,
-          audio_codec = AudioCodec.AAC
-        )
+        parts = [
+          PartObject(
+            key=Callback(PlayVideo, url=url, bitrate=bitrate)
+          )
+        ],
+        protocol = 'hls',
+        container = 'mpegts',
+        video_resolution = resolution,
+        video_codec = VideoCodec.H264,
+        audio_channels = 2,
+        optimized_for_streaming = True,
+        audio_codec = AudioCodec.AAC
       )
+    )
 
   return media_objects
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, res, **kwargs):
+def PlayVideo(url, bitrate, **kwargs):
 
   url = URLService.NormalizeURL(url)
 
@@ -97,45 +102,24 @@ def PlayVideo(url, res, **kwargs):
   smil_url = '%s&sig=%s' % (smil_url, sig)
 
   smil = XML.ElementFromURL(smil_url)
-  index = RESOLUTIONS.index(res)
   video_url = None
 
   if smil.xpath('//a:ref', namespaces=SMIL_NS)[0].get('title') == "Geographic Restriction":
     raise Ex.MediaGeoblocked
 
-  while index < len(RESOLUTIONS):
-    for video in smil.xpath("//a:video", namespaces=SMIL_NS):
-      if video.get('height') == RESOLUTIONS[index]:
-        video_url = video.get('src')
-        break
+  available_versions = smil.xpath('//a:video/@system-bitrate', namespaces=SMIL_NS)
+  closest = min((abs((bitrate*1000) - int(i)), int(i)) for i in available_versions)[1]
 
-    index += 1
-
-    if video_url:
-      break
-
-  # try falling back to the default //video/@src if we have one
-  # (like for older style flv based videos)
-  if not video_url:
-    video_url = smil.xpath('//a:video/@src', namespaces=SMIL_NS)[0]
+  video_url = smil.xpath('//a:video[@system-bitrate="%s"]/@src' % (closest), namespaces=SMIL_NS)[0]
 
   # now if we still don't have a video_url bail
   if not video_url:
     raise Ex.MediaNotAvailable
 
-  if video_url.startswith('http://') or video_url.startswith('https://'):
-    return IndirectResponse(VideoClipObject, key=video_url)
-  elif video_url.startswith('flv:'):
-    smil_string = HTTP.Request(smil_url).content
-    rtmp_base = RE_BASE.search(smil_string).group(1)
-    rtmp_clip = video_url.replace("flv:","").replace(".flv?","?")
-    return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=rtmp_base, clip=rtmp_clip))
-  elif video_url.startswith('MP4:') or video_url.startswith('mp4:'):
-    smil_string = HTTP.Request(smil_url).content
-    rtmp_base = RE_BASE.search(smil_string).group(1)
-    rtmp_clip = video_url
-    return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=rtmp_base, clip=rtmp_clip))
+  if video_url.split('?')[0].endswith('m3u8'):
+    return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(video_url))
   else:
+    Log('the value of video_url is %s' %video_url)
     raise Ex.MediaNotAvailable
 
 ####################################################################################################
