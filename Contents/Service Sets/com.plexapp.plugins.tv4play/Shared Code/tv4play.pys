@@ -49,7 +49,7 @@ def Login():
         https = ''
         
     postData = {}
-    postData['user_name']          = Prefs['email']
+    postData['username']           = Prefs['email']
     postData['password']           = Prefs['password']
     postData['remember_me']        = 'true'
     postData['authenticity_token'] = authenticity_token
