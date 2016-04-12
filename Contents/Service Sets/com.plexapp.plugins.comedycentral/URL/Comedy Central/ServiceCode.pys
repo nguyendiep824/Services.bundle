@@ -29,12 +29,10 @@ def MetadataObjectForURL(url):
 	duration = 0
 
 	try:
-		mgid = html.xpath('//meta[@property="sm4:video:embed"]/@content|//div[@id="video_player"]/@data-mgid')
+		mgid = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR).xpath('//div[@class="video_player"]/@data-mgid')[0]
 
 		if len(mgid) < 1:
 			raise Ex.MediaExpired
-
-		mgid = mgid[0].split('/embed/')[-1].split('"')[0]
 
 		mrss_data = HTTP.Request(MRSS_URL % mgid, cacheTime=CACHE_1HOUR).content
 		mrss_data = RE_FIX_XML.sub('', mrss_data)
@@ -88,14 +86,12 @@ def MetadataObjectForURL(url):
 def MediaObjectsForURL(url):
 
 	try:
-		mgid = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR).xpath('//meta[@property="sm4:video:embed"]/@content|//div[@id="video_player"]/@data-mgid')
+		mgid = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR).xpath('//div[@class="video_player"]/@data-mgid')[0]
 
 		if len(mgid) < 1:
 			raise Ex.MediaNotAvailable
 	except:
 		raise Ex.MediaExpired
-
-	mgid = mgid[0].split('/embed/')[-1].split('"')[0]
 
 	mrss_data = HTTP.Request(MRSS_URL % mgid, cacheTime=CACHE_1HOUR).content
 	mrss_data = RE_FIX_XML.sub('', mrss_data)
