@@ -72,7 +72,7 @@ def MediaObjectsForURL(url):
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, bitrate, **kwargs):
+def PlayVideo(url, bitrate=5500, **kwargs):
 
     xml_data = GetVideoXML(url)
     (video_url, available_bitrates) = (None, [])
