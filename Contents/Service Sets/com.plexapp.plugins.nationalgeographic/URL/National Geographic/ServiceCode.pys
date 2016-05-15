@@ -1,64 +1,33 @@
-RE_PLATFORM_URL = Regex('http://link.theplatform.com/s/ngc/[^?]+')
-RE_M3U8_URL = Regex("HTML5src:'(.+?)'")
-M3U8_URL = 'http://channelhd-i.akamaihd.net/i/mpx/video/Nat_Geo_Channels/%s_,180,80,30,22,0.mp4.csmil/master.m3u8'
 BASE = 'http://video.nationalgeographic.com'
-
+SMIL = 'http://link.theplatform.com/s/ngs/media/guid/2423130747/'
+SMIL_EXT = '?mbr=true&format=SMIL'
+NAMESPACES = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
 ####################################################################################################
 def NormalizeURL(url):
 
-  if '/embed/' in url:
-    return url.split('embed')[0]
+  if '?' in url:
+    return url.split('?')[0]
 
 ####################################################################################################
 def MetadataObjectForURL(url):
 
   try:
-    data = HTML.ElementFromURL(url, cacheTime=7200, follow_redirects=False)
-  except Ex.RedirectError, e:
-    raise Ex.MediaExpired
+    data = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR)
   except:
     raise Ex.MediaNotAvailable
 
-  if len(url.split('/full-episodes/')) > 1:
-    full_episode = True
-    show_title = (url.split('/full-episodes/')[1].split('/')[0].replace('-', ' ')).title()
-  else:
-    full_episode = False
+  title = data.xpath('//meta[@property="og:title"]/@content')[0]
+  summary = data.xpath('//meta[@property="og:description"]/@content')[0]
+  thumb = data.xpath('//meta[@property="og:image"]/@content')[0]
+  try: duration = int(GetSMIL(url).xpath('//a:video/@dur', namespaces=NAMESPACES)[0].split('ms')[0])
+  except: duration = 0
 
-  title = data.xpath('//title')[0].text
-
-  if ' -- ' in title:
-    title = title.split(' -- ')[1]
-  elif ' | ' in title:
-    title = title.split(' | ')[0]
-
-  thumb_url = data.xpath('//meta[@property="og:image"]/@content')
-
-  if len(thumb_url) < 1:
-    raise Ex.MediaNotAvailable
-  else:
-    thumb_url = thumb_url[0]
-
-  description = String.StripTags(data.xpath('//meta[@name="description"]/@content')[0])
-  keywords = [x.strip() for x in data.xpath('//meta[@name="keywords"]/@content')[0].split(',')]
-
-  if full_episode:
-    # Construct a metadata item
-    return EpisodeObject(
-      title = title,
-      show = show_title,
-      summary = description,
-      thumb = thumb_url,
-      #tags = keywords
-    )
-  else:
-    # Construct a metadata item
-    return VideoClipObject(
-      title = title,
-      summary = description,
-      thumb = thumb_url,
-      tags = keywords
-    )
+  return VideoClipObject(
+    title = title,
+    summary = summary,
+    duration = duration,
+    thumb = thumb
+  )
 
 ####################################################################################################
 def MediaObjectsForURL(url):
@@ -74,30 +43,25 @@ def MediaObjectsForURL(url):
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, **kwargs):
+def PlayVideo(url,**kwargs):
 
+  smil = GetSMIL(url)
+  videos = smil.xpath('//a:video/@src', namespaces=NAMESPACES)
+
+  if len(videos) < 1:
+    raise Ex.MediaNotAvailable
+
+  return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(videos[0]))
+####################################################################################################
+def GetSMIL(url):
+
+  try: html = HTML.ElementFromURL(url)
+  except: raise Ex.MediaExpired
+  guid = html.xpath('//div[@id="videoPlayer"]/@data-guid')
+  platform_url = '%s%s%s' %(SMIL, guid[0], SMIL_EXT)
   try:
-    data = HTTP.Request(url, cacheTime=7200, follow_redirects=False).content
-  except Ex.RedirectError, e:
-    raise Ex.MediaExpired
+    smil = XML.ElementFromURL(platform_url)
+  except:
+    raise Ex.MediaNotAvailable
+  return smil
 
-  platform_url = RE_PLATFORM_URL.findall(data)
-
-  if len(platform_url) < 1:
-    try:
-      video_m3u8 = RE_M3U8_URL.search(data).group(1)
-      video_m3u8 = BASE + video_m3u8
-    except:
-      raise Ex.MediaNotAvailable
-
-  else:
-    xml = XML.ElementFromURL(platform_url[0])
-    video_src = xml.xpath('//a:video/@src', namespaces={'a':'http://www.w3.org/2005/SMIL21/Language'})
-
-    if len(video_src) < 1:
-      raise Ex.MediaNotAvailable
-
-    video_id = video_src[0].split('/Nat_Geo_Channels/')[-1].split('_')[0]
-    video_m3u8 = M3U8_URL % video_id
-
-  return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(video_m3u8))
