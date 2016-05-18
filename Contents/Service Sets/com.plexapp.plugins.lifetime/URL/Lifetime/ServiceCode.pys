@@ -108,6 +108,10 @@ def PlayVideo(url, bitrate=1918, **kwargs):
     raise Ex.MediaGeoblocked
 
   available_versions = smil.xpath('//a:video/@system-bitrate', namespaces=SMIL_NS)
+
+  if len(available_versions) < 1:
+    raise Ex.MediaNotAvailable
+
   closest = min((abs((bitrate*1000) - int(i)), int(i)) for i in available_versions)[1]
 
   video_url = smil.xpath('//a:video[@system-bitrate="%s"]/@src' % (closest), namespaces=SMIL_NS)[0]
