@@ -33,7 +33,7 @@ def MetadataObjectForURL(url):
 			id = CM_ID.findall(permalink[0])
 
 	cm_url_html = CM_URL % (GetHost(url), id[0])
-	cm_url_json = CM_JSON_URL % cm_url_html
+	cm_url_json = CM_JSON_URL % (cm_url_html)
 
 	html = HTML.ElementFromString(HTTP.Request(cm_url_html, headers=HTTP_HEADERS).content.replace('&ndash;', '-'))
 
@@ -57,7 +57,8 @@ def MetadataObjectForURL(url):
 		thumb = 'http://%s/%s' % (GetHost(url), thumb.lstrip('/'))
 
 	try:
-		summary = html.xpath('//span[@class="byline"]/p/text()')[0]
+		summary = html.xpath('//div[@class="videoarticle-description"]/p/text()')[0]
+		summary = String.StripTags(summary)
 	except:
 		summary = None
 
@@ -101,15 +102,14 @@ def PlayVideo(url, **kwargs):
 			id = CM_ID.findall(permalink[0])
 
 	cm_url_html = CM_URL % (GetHost(url), id[0])
-	cm_url_json = CM_JSON_URL % cm_url_html
+	cm_url_json = CM_JSON_URL % (cm_url_html)
 
 	try:
 		json = JSON.ObjectFromURL(cm_url_json, headers=HTTP_HEADERS)
 	except:
 		raise Ex.MediaExpired
 
-	video_url = '%s/playlist.m3u8' % (json['videoURL'])
-	return IndirectResponse(VideoClipObject, key=video_url)
+	return IndirectResponse(VideoClipObject, key=json['videoURL'])
 
 ####################################################################################################
 def GetHost(url):
