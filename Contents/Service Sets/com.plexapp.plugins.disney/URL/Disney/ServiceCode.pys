@@ -17,11 +17,11 @@ def MetadataObjectForURL(url):
 		raise Ex.MediaNotAvailable
 
 	title = json_obj['title']
-	summary = json_obj['description']
-	duration = int(json_obj['duration_sec'])*1000
-	thumb = json_obj['thumb']
+	summary = json_obj['description'] if 'description' in json_obj else None
+	duration = int(json_obj['duration_sec'])*1000 if 'duration_sec' in json_obj else None
+	thumb = json_obj['thumb'] if 'thumb' in json_obj else ''
 
-	if 'Full Episode' in json_obj['vType'] and 'ptitle' in json_obj:
+	if 'vType' in json_obj and 'Full Episode' in json_obj['vType'] and 'ptitle' in json_obj:
 		show_title = json_obj['ptitle']
 
 		return EpisodeObject(
