@@ -152,9 +152,19 @@ def PlayVideo(url, bitrate=6000, **kwargs):
 		closest = min((abs(bitrate - i), i) for i in available.keys())[1]
 
 		if 'skyfire' in m3u8_master_url:
-			video_url = '%s/video/%s' % (m3u8_master_url.split('/video/')[0], available[closest].split('/video/')[1])
+
+			if '/video/' in available[closest]:
+				playlist = available[closest].split('/video/')[1]
+			elif available[closest].startswith('../'):
+				playlist = available[closest].split('../')[1]
+			else:
+				Log('Unknown playlist format...')
+
+			video_url = '%s/video/%s' % (m3u8_master_url.split('/video/')[0], playlist)
+
 		elif 'hls.vimeocdn.com' in m3u8_master_url:
 			video_url = '%s/%s' % (m3u8_master_url.rsplit('/', 1)[0], available[closest])
+
 		else:
 			Log('Unknown CDN...')
 			raise Ex.MediaNotAvailable
