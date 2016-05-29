@@ -64,10 +64,6 @@ def MetadataObjectForURL(url):
     rating = None 
     if 'reviews' in json_data:
         rating = 2 * float(json_data['reviews']['info']['avg_rating'])
-        
-    directors = None
-    if 'director' in json_data:
-        directors = json_data['director']
     
     duration = None
     if 'runtime' in json_data:
@@ -105,8 +101,7 @@ def MetadataObjectForURL(url):
             originally_available_at = originally_available_at,
             source_icon = INTERNET_ARCHIVE_LOGO,
             duration = duration,
-            rating = rating,
-            directors = [directors]
+            rating = rating
         )
 
     elif media_type == 'audio':            
