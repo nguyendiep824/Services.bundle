@@ -1,5 +1,6 @@
 USER_AGENT = 'AppleCoreMedia/1.0.0.11A501 (iPad; U; CPU OS 7_0_2 like Mac OS X; en_us)'
 RE_CHANNELS = Regex('"channels" *: *(\[.+\]),')
+RE_ID = Regex('video\/([0-9]+)\/?')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -90,8 +91,13 @@ def GetVideoData(url):
         data['videoReferences'] = channel['videoReferences']
 
     elif 'svtplay' in url:
-        page = HTML.ElementFromURL(url)
-        id = page.xpath("//*[@data-id]/@data-id")[0]
+        try:
+            id = RE_ID.search(url).groups()[0]
+        except:
+            page = HTML.ElementFromURL(url)
+            og_url = page.xpath("//meta[@property='og:url']/@content")[0]
+            id = RE_ID.search(og_url).groups()[0]
+        
         json = JSON.ObjectFromURL('http://www.svt.se/play4api/video/' + id)
     
         data['title'] = json['title']
