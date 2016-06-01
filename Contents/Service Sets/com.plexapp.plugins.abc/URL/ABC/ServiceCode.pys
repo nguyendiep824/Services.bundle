@@ -1,5 +1,6 @@
 HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36'}
 RE_SXX_EXX = Regex('Season (\d+).+Episode (\d+)')
+DATA_URL = 'http://api.contents.watchabc.go.com/vp2/ws/s/contents/2020/videos/001/001/-1/-1/-1/%s/-1/-1?v=08.00'
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -12,10 +13,7 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		html = HTML.ElementFromURL(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
-	except:
-		raise Ex.MediaNotAvailable
+	html = GetRealURL(url)
 
 	# Expired and unavailable media redirects to the home page. Instead of catching (multiple)
 	# redirects we check if there is a 'og:url' HTML element. 
@@ -67,7 +65,7 @@ def MediaObjectsForURL(url):
 	storage_id = 1561
 
 	strings = (
-		'/2020/', '#SH559026',
+		'/2020/', '#SH552425761',
 		'/good-morning-america/', '#SH5587637',
 		'/nightline/', '#SH5584743',
 		'/this-week', '#SH559082',
@@ -116,7 +114,7 @@ def PlayVideo(f4m_url=None, **kwargs):
 ####################################################################################################
 def GetVideoId(url):
 
-	html = HTML.ElementFromURL(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
+	html = GetRealURL(url)
 
 	# Loop over attribute values, because we can't grab the right one directly because of a missing namespace declaration(?)
 	for value in html.xpath('//div[@id="playerContainer"]/@*'):
@@ -124,3 +122,23 @@ def GetVideoId(url):
 			return value.split('VDKA')[-1]
 
 	return None
+####################################################################################################
+def GetRealURL(url):
+
+	try:
+		html = HTML.ElementFromURL(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
+	except:
+		if 'VDKA' in url:
+			video_id = url.split('VDKA')[-1].split('/')[0].split('#')[0]
+			try:
+				xml = XML.ElementFromURL(DATA_URL %video_id)
+				local_url = xml.xpath('//a:video/a:url/text()', namespaces={'a': 'http://abc.go.com/vp2/ws/xmlns'})[0]
+				#Log('the value of local_url is %s' %local_url)
+				html = HTML.ElementFromURL(local_url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
+			except: html = None
+		else:
+			html = None
+	if html:
+		return html
+	else:
+		raise Ex.MediaNotAvailable
