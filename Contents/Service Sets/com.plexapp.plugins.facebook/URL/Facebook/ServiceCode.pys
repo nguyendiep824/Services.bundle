@@ -2,6 +2,7 @@ RE_JSON = Regex('\["params",\s*"(.+?)"\]')
 RE_AVAILABLE = Regex('currently unavailable|content isn.+?t available', Regex.IGNORECASE)
 
 HTTP_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.63 Safari/537.36',
 	'Accept-Language': 'en-us,en'
 }
 
