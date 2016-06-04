@@ -157,6 +157,8 @@ def PlayVideo(url, bitrate=6000, **kwargs):
 				playlist = available[closest].split('/video/')[1]
 			elif available[closest].startswith('../'):
 				playlist = available[closest].split('../')[1]
+			elif available[closest] == "playlist.m3u8":
+				playlist = '%s/%s' % (m3u8_master_url.split('/video/')[-1].split('/master.m3u8')[0], available[closest])
 			else:
 				Log('Unknown playlist format...')
 
