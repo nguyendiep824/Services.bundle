@@ -6,13 +6,9 @@
 	<dict>
 		<key>Zie</key>
 		<dict>
-			<key>TestURLs</key>
-			<array>
-				<string>http://www.zie.nl/video/opmerkelijk/Pinguins-springen-mis/m1fzbjrf91ag</string>
-			</array>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http://www.zie.nl/video/[^/]+/[^/]+/[a-z0-9]{12}</string>
+				<string>^http:\/\/www\.zie\.nl\/video\/[^\/]+(\/[^\/]+)?\/[a-z0-9]{12}</string>
 			</array>
 		</dict>
 	</dict>
