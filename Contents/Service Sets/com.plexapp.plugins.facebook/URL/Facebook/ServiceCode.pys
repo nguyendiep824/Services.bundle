@@ -32,6 +32,8 @@ def MetadataObjectForURL(url):
 	duration = None
 	thumb = ''
 
+	page_content = page_content.replace('\\\\', '\\').replace('\\"', '"')
+
 	json = RE_JSON.search(page_content).group(1)
 	json = json.decode('unicode-escape')
 	json_obj = JSON.ObjectFromString(String.Unquote(json))
@@ -85,6 +87,8 @@ def PlayVideo(url, res='720', **kwargs):
 
 	if RE_AVAILABLE.search(page_content):
 		raise Ex.MediaNotAvailable
+
+	page_content = page_content.replace('\\\\', '\\').replace('\\"', '"')
 
 	json = RE_JSON.search(page_content).group(1)
 	json = json.decode('unicode-escape')
