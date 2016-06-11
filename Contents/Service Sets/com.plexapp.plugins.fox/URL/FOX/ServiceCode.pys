@@ -44,8 +44,12 @@ def MediaObjectsForURL(url):
     except:
         raise Ex.MediaNotAvailable
 
-    data = html.xpath("//script[@type='application/ld+json']/text()")[0]
-    json = JSON.ObjectFromString(data)
+    data = html.xpath("//script[@type='application/ld+json']/text()")
+
+    if len(data) < 1:
+        raise Ex.MediaNotAvailable
+
+    json = JSON.ObjectFromString(data[0])
 
     episode_id = json['@id']
     show = json['partOfSeries']['name']
