@@ -16,7 +16,10 @@ def MetadataObjectForURL(url):
 	try:
 		data = HTTP.Request(url, cacheTime=CACHE_1DAY).content
 	except:
-		raise Ex.MediaNotAvailable
+		try:
+			data = HTTP.Request('https://plex.sa.nderspi.es/twit/%s' % (url.split('twit.tv/', 1)[-1]), cacheTime=CACHE_1DAY).content
+		except:
+			raise Ex.MediaNotAvailable
 
 	html = HTML.ElementFromString(data)
 
@@ -75,8 +78,15 @@ def PlayMedia(url, fmt, **kwargs):
 
 	url = URLService.NormalizeURL(url)
 
+	try:
+		html = HTML.ElementFromURL(url, cacheTime=CACHE_1DAY)
+	except:
+		try:
+			html = HTML.ElementFromURL('https://plex.sa.nderspi.es/twit/%s' % (url.split('twit.tv/', 1)[-1]), cacheTime=CACHE_1DAY)
+		except:
+			raise Ex.MediaNotAvailable
+
 	fmt = fmt.strip('p')
-	html = HTML.ElementFromURL(url, cacheTime=CACHE_1DAY)
 
 	resolutions = ['720', '480']
 	video_path = {
