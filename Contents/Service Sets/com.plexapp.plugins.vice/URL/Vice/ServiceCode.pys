@@ -42,7 +42,7 @@ def MetadataObjectForURL(url):
 	# Extract the available information from the page
 	title = html.xpath('//meta[@property="og:title"]/@content')[0]
 	description = html.xpath('//meta[@name="description"]/@content')[0]
-	thumb = html.xpath('//meta[@property="og:image"]/@content')[0].replace(' ', '%20')
+	thumb = html.xpath('//meta[@property="og:image"]/@content')[0].split('?')[0].replace('https://', 'http://')
 
 	try:
 		show_name = title.split('|')[1].strip()
