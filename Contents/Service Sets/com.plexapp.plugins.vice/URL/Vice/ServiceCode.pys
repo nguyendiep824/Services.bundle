@@ -1,9 +1,9 @@
-BASE_URL = 'http://www.vice.com%s'
-PLAYER_URL = 'http://player.ooyala.com/player.js?embedCode=%s'
-MOBILE_PLAYER_URL = 'http://player.ooyala.com/mobile_player.js?%s'
+BASE_URL = 'https://www.vice.com%s'
+PLAYER_URL = 'https://player.ooyala.com/player.js?embedCode=%s'
+MOBILE_PLAYER_URL = 'https://player.ooyala.com/mobile_player.js?%s'
 
 RE_EMBED_CODE = Regex('embedCode=([^&]+)')
-RE_PLAYER_ARGS = Regex('var mobile_player_url="http://player.ooyala.com/mobile_player.js\?([^"]+)"')
+RE_PLAYER_ARGS = Regex('var mobile_player_url="https?://player.ooyala.com/mobile_player.js\?([^"]+)"')
 RE_STREAM = Regex('var streams=window.oo_testEnv\?\[\]:eval\("\((?P<json>.+?)\)"\);', Regex.DOTALL)
 
 RE_CONTROL_CHARS = Regex(u'[\u0000-\u001F]')
@@ -16,12 +16,7 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		data = HTTP.Request(url).content
-	except:
-		raise Ex.MediaNotAvailable
-
-	data = RE_CONTROL_CHARS.sub('', data)
+	data = GetData(url)
 	html = HTML.ElementFromString(data)
 
 	video = html.xpath('//*[contains(@class,"video-container")]/iframe/@src')
@@ -31,7 +26,7 @@ def MetadataObjectForURL(url):
 		youtube_link = html.xpath('//*[@class="youtube-video"]/@data-youtube-id')
 		
 		if youtube_link:
-			youtube_url = 'http://www.youtube.com/watch?v=%s' % youtube_link[0]
+			youtube_url = 'https://www.youtube.com/watch?v=%s' % youtube_link[0]
 			return URLService.MetadataObjectForURL(youtube_url)
 		else:
 			raise Ex.MediaNotAvailable
@@ -79,12 +74,7 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayVideo(url, **kwargs):
 
-	try:
-		data = HTTP.Request(url).content
-	except:
-		raise Ex.MediaNotAvailable
-
-	data = RE_CONTROL_CHARS.sub('', data)
+	data = GetData(url)
 	html = HTML.ElementFromString(data)
 
 	video = html.xpath('//*[contains(@class,"video-container")]/iframe/@src')
@@ -117,12 +107,33 @@ def PlayVideo(url, **kwargs):
 		raise Ex.MediaNotAvailable
 
 ####################################################################################################
+def GetData(url):
+
+	try:
+		data = HTTP.Request(url).content
+	except:
+		if 'news.vice.com' in url:
+			url = 'https://plex.sa.nderspi.es/vice-news/%s' % (url.split('news.vice.com/', 1)[-1])
+		else:
+			url = 'https://plex.sa.nderspi.es/vice/%s' % (url.split('vice.com/', 1)[-1])
+
+		try:
+			data = HTTP.Request(url, cacheTime=CACHE_1DAY).content
+		except:
+			raise Ex.MediaNotAvailable
+
+	data = RE_CONTROL_CHARS.sub('', data)
+
+	return data
+
+####################################################################################################
 def TestURLs():
 
 	test_urls = []
 	data = HTML.ElementFromURL(BASE_URL % '/video')
 
 	for vid in data.xpath('//div[@class="most_popular_videos"]//li[@class="story"]'):
+
 		url = BASE_URL % vid.xpath('.//a')[0].get('href')
 
 		if url not in test_urls:
