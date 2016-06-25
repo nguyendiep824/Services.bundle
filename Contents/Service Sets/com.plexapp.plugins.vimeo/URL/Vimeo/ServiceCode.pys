@@ -76,7 +76,7 @@ def MetadataObjectForURL(url):
 		year = originally_available_at.year,
 		duration = duration,
 		tags = tags,
-		directors = directors
+		#directors = directors
 	)
 
 ####################################################################################################
