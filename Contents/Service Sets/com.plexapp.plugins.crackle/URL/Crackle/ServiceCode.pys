@@ -63,8 +63,8 @@ def MetadataObjectForURL(url):
             content_rating = content_rating,
             year = year,
             genres = genres,
-            directors = directors,
-            writers = writers
+            #directors = directors,
+            #writers = writers
         )
 
     else:
