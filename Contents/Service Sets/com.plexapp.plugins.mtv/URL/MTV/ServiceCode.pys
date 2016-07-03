@@ -2,6 +2,7 @@
 VEVO_URL = 'http://www.vevo.com/watch/%s/%s/%s'
 RE_VEVO_URL_PATH = Regex('http://www\.(?:mtv|vh1|cmt)\.com/videos?/([^/]+)/\d+/(.+?)\.jhtml')
 RE_VEVO_ID = Regex("MTVN.VIDEO.isrc = '(.+?)';")
+RE_VEVO = Regex("MTVN.VIDEO.isVevo = (.+?);")
 
 # Broke this into two parts in case we pull a full uri from the website code
 MRSS_URL_PLAYER = 'http://%s/player/embed/AS3/rss/?uri=%s'
@@ -224,14 +225,16 @@ def VevoURL(url):
     except:
         raise Ex.MediaNotAvailable
 
-    # First check the web page to see if it has a Vevo id and is a Vevo video
-    try:
+    # First check to see if it is a Vevo video (Even if it is not a Vevo video, it will provide an empty vevo id field)
+    try: vevo = RE_VEVO.search(content).group(1).title()
+    except: vevo = 'False'
+    if vevo=='True':
         id = RE_VEVO_ID.search(content).group(1)
         local_url = html.xpath('//meta[@property="og:url"]/@content')[0]
         (artist, title) = RE_VEVO_URL_PATH.search(local_url).groups()
         vevo_url = VEVO_URL % (artist, title, id)
     # otherwise get the id number and build the mgid
-    except:
+    else:
         vevo_url = None
 
     #Log(' the value of vevo_url is %s' %vevo_url)
