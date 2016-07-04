@@ -14,6 +14,7 @@ def MetadataObjectForURL(url):
 	return VideoClipObject(
 		title = json_obj['n'],
 		summary = json_obj['d'],
+		duration = json_obj['s'] * 1000,
 		thumb = Resource.ContentsOfURLWithFallback(url=json_obj['pp'])
 	)
 
