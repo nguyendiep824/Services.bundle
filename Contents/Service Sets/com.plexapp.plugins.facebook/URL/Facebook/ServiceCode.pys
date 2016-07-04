@@ -92,9 +92,13 @@ def PlayVideo(url, res='720', **kwargs):
 
 	json = RE_JSON.search(page_content).group(1)
 	json = json.decode('unicode-escape')
+
 	json_obj = JSON.ObjectFromString(String.Unquote(json))
 
-	video_data = json_obj['video_data']['progressive'][0]
+	if 'video_id' in json_obj['video_data']['progressive']:
+		video_data = json_obj['video_data']['progressive']
+	else:
+		video_data = json_obj['video_data']['progressive'][0]
 
 	if res == '720' and 'hd_src' in video_data and video_data['hd_src'] is not None:
 		video_url = video_data['hd_src']
