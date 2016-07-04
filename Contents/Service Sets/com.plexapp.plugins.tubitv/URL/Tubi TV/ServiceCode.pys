@@ -1,5 +1,5 @@
-RE_APU = Regex("apu='([^']+)")
 RE_BANDWIDTH = Regex('BANDWIDTH=(\d+)')
+RE_JSON = Regex('window\.__data=(\{.+?\});')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -9,79 +9,33 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		html = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR)
-	except:
-		raise Ex.MediaNotAvailable
-
-	title = html.xpath('//meta[@property="og:title"]/@content')[0]
-	summary = html.xpath('//meta[@property="og:description"]/@content')[0]
-	duration = html.xpath('//meta[@property="video:duration"]/@content')[0]
-	thumb = html.xpath('//meta[@property="og:image"]/@content')[0].replace('285x408.jpg', '204x143.jpg')
+	json_obj = GetJSON(url)
 
 	return VideoClipObject(
-		title = title,
-		summary = summary,
-		duration = int(duration) * 1000 if duration != '' else None,
-		thumb = Resource.ContentsOfURLWithFallback(url=thumb)
+		title = json_obj['n'],
+		summary = json_obj['d'],
+		thumb = Resource.ContentsOfURLWithFallback(url=json_obj['pp'])
 	)
 
 ####################################################################################################
-@deferred
 def MediaObjectsForURL(url):
 
-	try:
-		data = HTTP.Request(url, cacheTime=CACHE_1HOUR).content
-	except:
-		raise Ex.MediaNotAvailable
-
-	video_url = RE_APU.search(data)
-
-	if not video_url:
-		raise Ex.MediaNotAvailable
-
-	video_url = video_url.group(1).decode('rot13')[::-1]
-
-	if video_url.endswith('.m3u8'):
-
-		return [
-			MediaObject(
-				parts = [
-					PartObject(
-						key = HTTPLiveStreamURL(Callback(PlayVideo, url=video_url))
-					)
-				]
-			)
-		]
-
-	elif video_url.endswith('.mp4'):
-
-		return [
-			MediaObject(
-				parts = [
-					PartObject(
-						key = video_url
-					)
-				],
-				container = Container.MP4,
-				video_codec = VideoCodec.H264,
-				audio_codec = AudioCodec.AAC,
-				optimized_for_streaming = True,
-				audio_channels = 2
-			)
-		]
-
-	else:
-
-		raise Ex.MediaNotAvailable
+	return [
+		MediaObject(
+			parts = [
+				PartObject(
+					key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
+				)
+			]
+		)
+	]
 
 ####################################################################################################
 def PlayVideo(url, **kwargs):
 
-	try:
-		playlist = HTTP.Request(url).content
-	except:
-		raise Ex.MediaNotAvailable
+	json_obj = GetJSON(url)
+	playlist_url = json_obj['mh']
+	playlist = HTTP.Request(playlist_url).content
 
 	new_playlist = '#EXTM3U'
 	streams = []
@@ -98,10 +52,10 @@ def PlayVideo(url, **kwargs):
 			if not bandwidth:
 				continue
 			if line.startswith('/'):
-				host = url.split('/')[2]
+				host = playlist_url.split('/')[2]
 				line = 'http://%s%s' % (host, line)
 			elif not line.startswith('http://') or not line.startswith('https://'):
-				rel_url = url.rsplit('/', 1)[0]
+				rel_url = playlist_url.rsplit('/', 1)[0]
 				line = '%s/%s' % (rel_url, line)
 
 			streams.append({
@@ -115,3 +69,18 @@ def PlayVideo(url, **kwargs):
 		new_playlist += '\n%s' % stream['stream']
 
 	return new_playlist
+
+####################################################################################################
+def GetJSON(url):
+
+	try:
+		data = HTTP.Request(url, cacheTime=CACHE_1HOUR).content
+	except:
+		raise Ex.MediaNotAvailable
+
+	json = RE_JSON.search(data)
+
+	if not json:
+		raise Ex.MediaNotAvailable
+
+	return JSON.ObjectFromString(json.group(1))['video']['data']
