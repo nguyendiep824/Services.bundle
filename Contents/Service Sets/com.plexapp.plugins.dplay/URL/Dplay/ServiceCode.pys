@@ -1,5 +1,4 @@
 RE_VIDEO_ID = Regex('\?p=(\d+)')
-DIRECT_PLAY_CLIENTS = ['Konvergo', 'iOS', 'Android', 'Roku', 'Mystery 4', 'Safari', 'tvOS']
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -67,29 +66,26 @@ def MediaObjectsForURL(url):
         if video_data['type'] == 'securehd':
             video_resolution = 1080
     
-    if Client.Platform in DIRECT_PLAY_CLIENTS:
-        return [
-            MediaObject(
-                video_resolution = video_resolution,
-                audio_channels = 2,
-                optimized_for_streaming = True,
-                parts = [PartObject(key = HTTPLiveStreamURL(video_data['hls']))]
-            )
-        ]
-    else:
-        # Try to fool non direct play compatible clients to request transcoding
-        return [
-            MediaObject(
-                video_resolution = video_resolution,
-                audio_channels = 2,
-                optimized_for_streaming = False,
-                video_codec = 'hevc',
-                parts = [PartObject(key = video_data['hls'])]
-            )
-        ]
-        # ... unfortunately nothing can be done to fool PHT though
+    key = HTTPLiveStreamURL(video_data['hls'])
     
+    # - Fix for Plex Web clients(avoid M3U8 cross domain access denied)
+    # - Fix for Plex Home Theater(only the master playlist utilizes https)
+    if (Client.Product in ['Plex Web'] and Client.Platform not in ['Safari']) or Client.Platform == 'Plex Home Theater':
+        key = HTTPLiveStreamURL(Callback(PlayVideo, hls_url=video_data['hls']))
     
+    return [
+        MediaObject(
+            video_resolution = video_resolution,
+            audio_channels = 2,
+            optimized_for_streaming = True,
+            parts = [PartObject(key = key)]
+        )
+    ]
+
+####################################################################################################
+def PlayVideo(hls_url):
+    return HTTP.Request(hls_url).content
+
 ####################################################################################################
 def GetVideoID(url):
     
