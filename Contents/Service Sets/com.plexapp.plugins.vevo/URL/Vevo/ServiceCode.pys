@@ -13,7 +13,7 @@ def MetadataObjectForURL(url):
 
 	artist = json_obj['mainArtists'][0]['name']
 	title = json_obj['title']
-	duration = json_obj['duration'] * 1000
+	duration = int(float(json_obj['duration']) * 1000)
 	originally_available_at = Datetime.ParseDate(json_obj['releaseDate'].split('T')[0])
 	genres = [genre for genre in json_obj['genres']]
 	thumb = json_obj['thumbnailUrl']
