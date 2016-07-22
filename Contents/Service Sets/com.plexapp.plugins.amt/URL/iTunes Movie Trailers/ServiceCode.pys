@@ -37,7 +37,7 @@ def MetadataObjectForURL(url):
 			duration = Datetime.MillisecondsFromString(clip['runtime'])
 			break
 
-	return MovieObject(
+	return VideoClipObject(
 		title = '%s (%s)' % (title, clip_title),
 		summary = summary,
 		thumb = Resource.ContentsOfURLWithFallback(thumb),
