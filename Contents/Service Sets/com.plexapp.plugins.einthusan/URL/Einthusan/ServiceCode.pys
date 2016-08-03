@@ -33,8 +33,8 @@ def MetadataObjectForURL(url):
 	summary = html.xpath('//div[@class="movie-description"]//p[@class="desc_body"]/text()')[0]
 
 	return VideoClipObject(
-		title = title[0],
-		summary = summary,
+		title = title[0].strip(),
+		summary = summary.strip(),
 		thumb = Resource.ContentsOfURLWithFallback(url=thumb)
 	)
 
@@ -58,7 +58,7 @@ def PlayVideo(url, **kwargs):
 	cdn_url = CDN_URL % (video_id)
 
 	try:
-		data = HTTP.Request(cdn_url).content
+		data = HTTP.Request(cdn_url, headers={'Referer': url}).content
 	except:
 		raise Ex.MediaNotAvailable
 
