@@ -103,7 +103,8 @@ def PlayVideo(url, res='720', **kwargs):
 		elif '480p' in json_obj:
 			video_url = json_obj['480p']
 		else:
-			raise Ex.MediaNotAvailable
+			video_url = json_obj[json_obj.keys()[0]]
+
 	else:
 
 		html = HTML.ElementFromString(data)
