@@ -111,20 +111,10 @@ def GetData(url):
 
 	try:
 		data = HTTP.Request(url).content
+		data = RE_CONTROL_CHARS.sub('', data)
+		return data
 	except:
-		if 'news.vice.com' in url:
-			url = 'https://plex.sa.nderspi.es/vice-news/%s' % (url.split('news.vice.com/', 1)[-1])
-		else:
-			url = 'https://plex.sa.nderspi.es/vice/%s' % (url.split('vice.com/', 1)[-1])
-
-		try:
-			data = HTTP.Request(url, cacheTime=CACHE_1DAY).content
-		except:
-			raise Ex.MediaNotAvailable
-
-	data = RE_CONTROL_CHARS.sub('', data)
-
-	return data
+		raise Ex.MediaNotAvailable
 
 ####################################################################################################
 def TestURLs():
