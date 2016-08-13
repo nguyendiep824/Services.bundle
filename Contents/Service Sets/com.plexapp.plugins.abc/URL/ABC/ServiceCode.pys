@@ -14,11 +14,7 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	html = HTML.ElementFromURL(url)
-
-	video_id = html.xpath('//div[@data-video-id]/@data-video-id')[0]
-	thumb = html.xpath('//div[@data-image-web]/@data-image-web')[0]
-
+	video_id = GetVideoId(url)
 	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
 
 	return EpisodeObject(
@@ -31,7 +27,7 @@ def MetadataObjectForURL(url):
 		season = int(json_obj['video']['seasonnumber']),
 		index = int(json_obj['video']['episodenumber']),
 		art = json_obj['images'][0]['value'],
-		thumb = thumb
+		thumb = json_obj['images'][0]['value']
 	)
 
 ####################################################################################################
@@ -52,9 +48,7 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayVideo(url, **kwargs):
 
-	html = HTML.ElementFromURL(url)
-	video_id = html.xpath('//div[@data-video-id]/@data-video-id')[0]
-
+	video_id = GetVideoId(url)
 	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
 
 	m3u8_base_url = json_obj['video']['assets'][0]['value']
@@ -75,3 +69,22 @@ def PlayVideo(url, **kwargs):
 	video_url = '%s?%s' % (m3u8_base_url, session_key)
 
 	return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url))
+
+####################################################################################################
+def GetVideoId(url):
+
+	if url.startswith('abc://'):
+		return url.split('abc://')[-1]
+	else:
+
+		try:
+			html = HTML.ElementFromURL(url)
+		except:
+			raise Ex.MediaNotAvailable
+
+		video_id = html.xpath('//div[@data-video-id]/@data-video-id')
+
+		if len(video_id) < 1:
+			raise Ex.MediaNotAvailable
+		else:
+			return video_id[0]
