@@ -115,21 +115,3 @@ def GetData(url):
 		return data
 	except:
 		raise Ex.MediaNotAvailable
-
-####################################################################################################
-def TestURLs():
-
-	test_urls = []
-	data = HTML.ElementFromURL(BASE_URL % '/video')
-
-	for vid in data.xpath('//div[@class="most_popular_videos"]//li[@class="story"]'):
-
-		url = BASE_URL % vid.xpath('.//a')[0].get('href')
-
-		if url not in test_urls:
-			test_urls.append(url)
-
-		if len(test_urls) >= 2:
-			break
-
-	return test_urls
