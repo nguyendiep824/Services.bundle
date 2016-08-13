@@ -1,144 +1,77 @@
-HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36'}
-RE_SXX_EXX = Regex('Season (\d+).+Episode (\d+)')
-DATA_URL = 'http://api.contents.watchabc.go.com/vp2/ws/s/contents/2020/videos/001/001/-1/-1/-1/%s/-1/-1?v=08.00'
+HTTP_HEADERS = {
+	'User-Agent': 'ABC/5.0.3(iPad4,4; cpu iPhone OS 9_3_4 like mac os x; en-nl) CFNetwork/758.5.3 Darwin/15.6.0',
+	'appversion': '5.0.0'
+}
+
+METADATA_URL = 'https://api.pluto.watchabc.go.com/api/ws/pluto/v1/module/videoplayer/1350290?brand=001&device=002&video=%s'
+ENTITLEMENT_URL = 'https://api.entitlement.watchabc.go.com/vp2/ws-secure/entitlement/2020/authorize.json'
 
 ####################################################################################################
 def NormalizeURL(url):
 
-	if not '/redirect/fep?videoid=VDKA' in url:
-		return url.split('?')[0]
-	else:
-		return url
+	return url
 
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	html = GetRealURL(url)
+	html = HTML.ElementFromURL(url)
 
-	# Expired and unavailable media redirects to the home page. Instead of catching (multiple)
-	# redirects we check if there is a 'og:url' HTML element. 
-	# The meta tags for the data collected below may be either @name or @property.
-	og_url = html.xpath('//meta[@name="og:url" or @property="og:url"]/@content')
+	video_id = html.xpath('//div[@data-video-id]/@data-video-id')[0]
+	thumb = html.xpath('//div[@data-image-web]/@data-image-web')[0]
 
-	if len(og_url) < 1 or og_url[0].endswith('abc.go.com') or og_url[0].endswith('abc.go.com/'):
-		raise Ex.MediaNotAvailable
-
-	show_info = html.xpath('//title/text()')[0]
-	show_title = show_info.split(':')[0]
-	summary = html.xpath('//meta[@name="og:description" or @property="og:description"]/@content')[0]
-	episode_title = html.xpath('//meta[@name="og:title" or @property="og:title"]/@content')[0].split(': ', 1)[-1].rsplit(' - ', 1)[0]
-
-	try:
-		(season, index) = RE_SXX_EXX.search(show_info).groups()
-	except:
-		season = None
-		index = None
-
-	thumb = html.xpath('//meta[@name="og:image" or @property="og:image"]/@content')[0]
-
-	if thumb == '':
-		video_id = GetVideoId(url)
-		thumb = 'http://static.east.abc.go.com/service/image/ratio/id/VDKA%s/dim/1200.16x9.jpg' % (video_id)
+	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
 
 	return EpisodeObject(
-		show = show_title,
-		title = episode_title,
-		season = int(season) if season else None,
-		index = int(index) if index else None,
-		summary = summary,
-		thumb = Resource.ContentsOfURLWithFallback(thumb)
+		show = json_obj['video']['show']['title'],
+		title = json_obj['video']['title'],
+		summary = json_obj['video']['longdescription'],
+		duration = json_obj['video']['duration'],
+		content_rating = json_obj['video']['tvrating'],
+		originally_available_at = Datetime.ParseDate(json_obj['video']['airtime']).date(),
+		season = int(json_obj['video']['seasonnumber']),
+		index = int(json_obj['video']['episodenumber']),
+		art = json_obj['images'][0]['value'],
+		thumb = thumb
 	)
 
 ####################################################################################################
 def MediaObjectsForURL(url):
 
-	if '/VDKA' in url:
-		video_id = url.split('/VDKA')[-1].split('/')[0]
-	elif '/redirect/fep?videoid=VDKA' in url:
-		video_id = url.split('videoid=VDKA')[-1].split('#')[0]
-	else:
-		video_id = GetVideoId(url)
-
-	if not video_id:
-		raise Ex.MediaNotAvailable
-
-	storage_id = 1561
-
-	strings = (
-		'/2020/', '#SH552425761',
-		'/good-morning-america/', '#SH5587637',
-		'/nightline/', '#SH5584743',
-		'/this-week', '#SH559082',
-		'/what-would-you-do/', '#SH5555951',
-		'/world-news-tonight', '#SH5585921', '#SH55228120'
-	)
-
-	for s in strings:
-		if s in url:
-			storage_id = 1841
-			break
-
-	f4m_url = 'http://cdnapi.kaltura.com/p/585231/sp/58523100/playManifest/entryId/%s/format/http/protocol/http/cdnHost/cdnbakmi.kaltura.com/storageId/%d/uiConfId/8628152/tags/uplynk/a/a.f4m' % (video_id, storage_id)
-
 	return [
 		MediaObject(
-			protocol = 'hls',
-			container = 'mpegts',
-			video_codec = VideoCodec.H264,
-			video_resolution = '1080',
-			audio_codec = AudioCodec.AAC,
-			audio_channels = 2,
+			video_resolution = 720,
 			optimized_for_streaming = True,
+			audio_channels = 2,
 			parts = [
-				PartObject(
-					key = Callback(PlayVideo, f4m_url=f4m_url, post_url=f4m_url, ext='m3u8')
-				)
+				PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url)))
 			]
 		)
 	]
 
 ####################################################################################################
 @indirect
-def PlayVideo(f4m_url=None, **kwargs):
+def PlayVideo(url, **kwargs):
 
-	if not f4m_url:
-		raise Ex.MediaNotAvailable
+	html = HTML.ElementFromURL(url)
+	video_id = html.xpath('//div[@data-video-id]/@data-video-id')[0]
 
-	try:
-		xml = XML.ElementFromURL(f4m_url)
-		video_url = xml.xpath('//a:media/@url', namespaces={'a': 'http://ns.adobe.com/f4m/1.0'})[0]
-		return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url))
-	except:
-		raise Ex.MediaNotAvailable
+	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
 
-####################################################################################################
-def GetVideoId(url):
+	m3u8_base_url = json_obj['video']['assets'][0]['value']
 
-	html = GetRealURL(url)
+	post_values = {
+		'video_id': video_id,
+		'mvpd': 'None',
+		'token_type': 'ap',
+		'uplynk_ct': 'a',
+		'video_type': 'lf',
+		'brand': '001',
+		'device': '002'
+	}
 
-	# Loop over attribute values, because we can't grab the right one directly because of a missing namespace declaration(?)
-	for value in html.xpath('//div[@id="playerContainer"]/@*'):
-		if value.startswith('VDKA'):
-			return value.split('VDKA')[-1]
+	json_obj = JSON.ObjectFromURL(ENTITLEMENT_URL, values=post_values, headers=HTTP_HEADERS)
+	session_key = json_obj['uplynkData']['sessionKey']
 
-	return None
-####################################################################################################
-def GetRealURL(url):
+	video_url = '%s?%s' % (m3u8_base_url, session_key)
 
-	try:
-		html = HTML.ElementFromURL(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
-	except:
-		if 'VDKA' in url:
-			video_id = url.split('VDKA')[-1].split('/')[0].split('#')[0]
-			try:
-				xml = XML.ElementFromURL(DATA_URL %video_id)
-				local_url = xml.xpath('//a:video/a:url/text()', namespaces={'a': 'http://abc.go.com/vp2/ws/xmlns'})[0]
-				#Log('the value of local_url is %s' %local_url)
-				html = HTML.ElementFromURL(local_url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
-			except: html = None
-		else:
-			html = None
-	if html:
-		return html
-	else:
-		raise Ex.MediaNotAvailable
+	return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url))
