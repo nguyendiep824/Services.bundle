@@ -1,11 +1,9 @@
 MRSS_URL = 'http://%s/feeds/video-player/mrss/%s'
+MGID = 'mgid:arc:episode:southparkstudios.com:%s'
 NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
 
 RE_EP_DATA = Regex('\/s(?P<season>\d+)e(?P<episode>\d+)\-')
-RE_URI = Regex('swfobject.embedSWF\("http://.+?/(mgid.+?)",')
-RE_AMPERSANDS = Regex('&(?!amp;)')
-RE_BITRATE = Regex('_(\d+)(?:kbps)?\.mp4')
-
+ 
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -63,106 +61,57 @@ def MetadataObjectForURL(url):
 def MediaObjectsForURL(url):
 
 	html = HTML.ElementFromURL(url)
-	mgid = html.xpath('//*[@id="player_page_player"]/@data-mgid|//*[@data-now-playing]/@data-now-playing')
+	mgid = html.xpath('//*[@id="player_page_player"]/@data-mgid')
 
 	if len(mgid) < 1:
-		page = HTML.StringFromElement(html)
-		mgid = RE_URI.search(page)
-
-		if not mgid:
+		try:
+			mgid_num = html.xpath('//@data-now-playing')
+			mgid = MGID %mgid_num
+		except:
+			Log('no mgid found')
 			raise Ex.MediaNotAvailable
-		else:
-			mgid = mgid.group(1)
 	else:
 		mgid = mgid[0]
 
-	if not mgid.startswith('mgid:'):
-		mgid = 'mgid:arc:episode:southparkstudios.com:%s' % (mgid)
-
 	host = url.split('/')[2]
 
-	mrss_data = HTTP.Request(MRSS_URL % (host, mgid)).content
-	mrss_data = RE_AMPERSANDS.sub('&amp;', mrss_data)
-	mrss_data = XML.ElementFromString(mrss_data)
+	mrss_data = XML.ElementFromURL(MRSS_URL % (host, mgid))
 
 	media_urls = mrss_data.xpath('//media:content[@medium="video"]/@url', namespaces=NAMESPACES)
+	if len(media_urls) < 1:
+		raise Ex.MediaNotAvailable
 
-	available_streams = {}
+	available_streams = []
 
 	for media_url in media_urls:
 
 		try:
-			video_data = XML.ElementFromURL(media_url)
+			hls_data = XML.ElementFromURL(media_url.replace('{device}', 'iPad'), cacheTime=CACHE_1HOUR)
 		except:
 			raise Ex.MediaNotAvailable
 
-		renditions = video_data.xpath('//rendition[@type="video/mp4"]')
+		# Create part for the video section
+		part = {}
+		part['duration'] = hls_data.xpath('//rendition/@duration')[0]
+		part['hls_url'] = hls_data.xpath('//rendition/src/text()')[0]
+		available_streams.append(part)
 
-		if len(renditions) < 1:
-			raise Ex.MediaNotAvailable
-
-		for rendition in renditions:
-
-			if int(rendition.get('height')) < 360:
-				continue
-
-			rtmp_url = rendition.xpath('./src/text()')[0]
-
-			if '/intros/' in rtmp_url:
-				continue
-
-			if '/viacomccstrm/' in rtmp_url:
-				clip = rtmp_url.split('/viacomccstrm/')[-1]
-			elif '/viacomspstrm/' in rtmp_url:
-				clip = rtmp_url.split('/viacomspstrm/')[-1]
-			elif '/mtvnorigin/' in rtmp_url:
-				clip = rtmp_url.split('/mtvnorigin/')[-1]
-			else:
-				Log('Failed to split the rmtp_url to find clip: %s' % (rtmp_url))
-				raise Ex.MediaNotAvailable
-
-			bitrate = RE_BITRATE.search(clip).group(1)
-
-			if bitrate not in available_streams:
-				available_streams[bitrate] = []
-
-			part = {}
-			part['duration'] = rendition.get('duration')
-			part['height'] = rendition.get('height')
-			part['clip'] = clip
-
-			available_streams[bitrate].append(part)
-
-	media_objects = []
-	bitrates = [int(i) for i in available_streams.keys()]
-	bitrates.sort(reverse=True)
-
-	for bitrate in bitrates:
-
+		media_objects = []
+		# Build media objects for hls videos
 		parts = []
-
-		for part in available_streams[str(bitrate)]:
-
+		for part in available_streams:
 			parts.append(
 				PartObject(
-					key = RTMPVideoURL(
-						url='rtmpe://viacommtvstrmfs.fplive.net:1935/viacommtvstrm',
-						clip='mp4:%s' % (part['clip'])
-					),
+					key = HTTPLiveStreamURL(part['hls_url']),
 					duration = int(part['duration'])*1000
 				)
 			)
 
-			video_resolution = int(part['height'])
-
 		media_objects.append(
 			MediaObject(
 				parts = parts,
-				video_codec = VideoCodec.H264,
-				audio_codec = AudioCodec.AAC,
-				bitrate = bitrate,
-				video_resolution = video_resolution,
-				audio_channels = 2
+				protocol = 'hls',
+				container = 'mpegts'
 			)
 		)
 
