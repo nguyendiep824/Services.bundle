@@ -7,7 +7,7 @@ RE_ID = Regex('\d+')
 ####################################################################################################
 def MetadataObjectForURL(url): 
     # Determine id of episode
-    [baseurl, id] = FindVideoID(url)
+    id = FindVideoID(url)
         
     try: 
         video = JSON.ObjectFromURL(VIDEO_DETAILS_URL % id)
@@ -90,7 +90,7 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayVideo(url, **kwargs):
     # Determine id of episode
-    [baseurl, id] = FindVideoID(url)
+    id = FindVideoID(url)
 
     try: 
         data = JSON.ObjectFromURL(VIDEO_STREAM_URL % id)
@@ -161,13 +161,16 @@ def GetHLSStreams(url):
 ####################################################################################################
 def FindVideoID(url):
     try:
-        split = url.split('/')
-        baseurl = 'http://' + split[2]
+        if '?' in url:
+            split = url.split('=')
+        else:
+            split = url.split('/')
+        
         id  = RE_ID.findall(split[-1])[0]
     except:
         raise Ex.MediaNotAvailable
 
-    return [baseurl, id]
+    return id
     
  
 
