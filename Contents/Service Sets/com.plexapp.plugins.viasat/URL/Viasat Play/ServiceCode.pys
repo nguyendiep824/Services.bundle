@@ -2,7 +2,8 @@ API_BASE_URL = String.Decode('aHR0cDovL3BsYXlhcGkubXRneC50di92My8=')
 VIDEO_STREAM_URL = API_BASE_URL + 'videos/stream/%s'
 VIDEO_DETAILS_URL = API_BASE_URL + 'videos/%s'
 
-RE_ID = Regex('\d+')
+RE_ID_URL = Regex('\d+')
+RE_ID_IMAGE = Regex('\/(\d+)\/')
 
 ####################################################################################################
 def MetadataObjectForURL(url): 
@@ -160,13 +161,22 @@ def GetHLSStreams(url):
 
 ####################################################################################################
 def FindVideoID(url):
+    # Try to find video id via URL
     try:
-        if '?' in url:
+        if '?id=' in url:
             split = url.split('=')
         else:
             split = url.split('/')
         
-        id  = RE_ID.findall(split[-1])[0]
+        id  = RE_ID_URL.findall(split[-1])[0]
+    except:
+        pass
+        
+    # Try to find video via html
+    try:
+        element = HTML.ElementFromURL(url)
+        image_url = element.xpath("//meta[@property='og:image']/@content")[0]
+        id = RE_ID_IMG.search(image_url).groups()[0]
     except:
         raise Ex.MediaNotAvailable
 

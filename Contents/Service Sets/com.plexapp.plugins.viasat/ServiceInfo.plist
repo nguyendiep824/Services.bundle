@@ -20,7 +20,7 @@
 				<string>^http:\/\/www\.viasat4play\.no\/(play|programmer\/.*)\/[0-9]+</string>
 				<string>^http:\/\/www\.viagame\.com\/(play|program|channels)\/.*\/[0-9]+</string>
 				<string>^http:\/\/play\.novatv\.bg\/programi\/.*\/[0-9]+</string>
-				<string>^http:\/\/www\.viafree\..+\/embed\?id\=[0-9]+</string>
+				<string>^http:\/\/www\.viafree\..+\/.+</string>
 			</array>
 		</dict>
 	</dict>
