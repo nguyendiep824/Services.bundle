@@ -1,5 +1,5 @@
 USER_AGENT = 'AppleCoreMedia/1.0.0.11A501 (iPad; U; CPU OS 7_0_2 like Mac OS X; en_us)'
-RE_CHANNELS = Regex('"channels" *: *(\[.+\]),')
+RE_CHANNELS = Regex('"schedule" *: *(\[.+\]) *,')
 RE_ID = Regex('video\/([0-9]+)\/?')
 
 ####################################################################################################
