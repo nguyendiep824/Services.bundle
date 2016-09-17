@@ -36,7 +36,7 @@
 		<dict>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http:\/\/(www\.)?vodlocker\.com\/.+</string>
+				<string>^(?!.*\.jpg)http:\/\/(www\.)?vodlocker\.com\/.+</string>
 			</array>
 		</dict>
 	</dict>
