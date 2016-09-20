@@ -1,6 +1,7 @@
 STREAM_DATA = 'https://api.twitch.tv/kraken/streams/%s'
 HLS_TOKEN_URL = 'http://api.twitch.tv/api/channels/%s/access_token'
 HLS_PLAYLIST_URL = 'http://usher.twitch.tv/api/channel/hls/%s.m3u8?token=%s&sig=%s'
+CLIENT_ID = 'gzux2tt85x9ppnnxyh7czkfiovtxtd7'
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -13,6 +14,7 @@ def MetadataObjectForURL(url):
 	user_id = GetUserId(url)
 
 	try:
+		HTTP.Headers['Client-ID'] = CLIENT_ID
 		video = JSON.ObjectFromURL(STREAM_DATA % user_id, cacheTime=0)
 	except:
 		raise Ex.MediaNotAvailable
@@ -58,6 +60,7 @@ def PlayVideo(url, **kwargs):
 	user_id = GetUserId(url)
 
 	try:
+		HTTP.Headers['Client-ID'] = CLIENT_ID
 		token = JSON.ObjectFromURL(HLS_TOKEN_URL % user_id, cacheTime=0)
 	except:
 		raise Ex.MediaNotAvailable
