@@ -90,9 +90,13 @@ def MediaObjectsForURL(url):
 		except:
 			raise Ex.MediaNotAvailable
 
+		# Skip parts that are too short and cause issues in some Plex players
+		part_duration = hls_data.xpath('//rendition/@duration')[0]
+		if int(part_duration) <8:
+			continue
 		# Create part for the video section
 		part = {}
-		part['duration'] = hls_data.xpath('//rendition/@duration')[0]
+		part['duration'] = part_duration
 		part['hls_url'] = hls_data.xpath('//rendition/src/text()')[0]
 		available_streams.append(part)
 
