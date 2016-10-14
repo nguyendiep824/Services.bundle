@@ -43,10 +43,6 @@ def MediaObjectsForURL(url):
 			],
 			video_resolution = resolution,
 			bitrate = bitrate,
-			container = Container.MP4,
-			video_codec = VideoCodec.H264,
-			audio_codec = AudioCodec.AAC,
-			audio_channels = 2,
 			optimized_for_streaming = False
 		) for resolution, bitrate in [('1080', 3000), ('720', 1500), ('360', 750)]
 	]
