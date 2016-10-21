@@ -26,7 +26,7 @@ def MetadataObjectForURL(url):
 		data = data['video']
 
 	title = data['title']
-	thumb = data['thumb'].replace('m.jpg', 'b.jpg')
+	thumb = 'http:'+data['thumb'].replace('m.jpg', 'b.jpg')
 
 	try: duration = TimeToMs(data['duration'])
 	except: duration = None
