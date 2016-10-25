@@ -43,6 +43,7 @@ def MediaObjectsForURL(url):
 			],
 			video_resolution = resolution,
 			bitrate = bitrate,
+			audio_channels = 2,
 			optimized_for_streaming = False
 		) for resolution, bitrate in [('1080', 3000), ('720', 1500), ('360', 750)]
 	]
@@ -65,17 +66,18 @@ def PlayVideo(url, res, **kwargs):
 		raise Ex.MediaNotAvailable
 
 	cookie_value = RE_COOKIE_VALUE.search(data.headers['set-cookie']).group(1)
+	http_cookies = 'DRIVE_STREAM=%s; path=/; domain=.docs.google.com;' % (cookie_value)
 
 	fmts = RE_FMT_MAP.search(data.content).group(1).decode('unicode_escape').split(',')
 
 	for fmt in fmts:
 		if fmt.startswith('37|') and res == '1080':
-			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies='DRIVE_STREAM=%s' % (cookie_value))
+			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies=http_cookies)
 
 	for fmt in fmts:
 		if fmt.startswith('22|') and res in ('1080', '720'):
-			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies='DRIVE_STREAM=%s' % (cookie_value))
+			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies=http_cookies)
 
 	for fmt in fmts:
 		if fmt.startswith('18|'):
-			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies='DRIVE_STREAM=%s' % (cookie_value))
+			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies=http_cookies)
