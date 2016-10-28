@@ -8,10 +8,14 @@ RE_TP_ID =   Regex('http://video.pbs.org/video/([0-9]+)')
 PBS_URL = 'http://video.pbs.org/'
 DETAILS = '/cove/v1/videos/?fields=mediafiles%2Cassociated_images&filter_tp_media_object_id='
 
+####################################################################################################
 def NormalizeURL(url):
+
     return url
 
+####################################################################################################
 def MetadataObjectForURL(url):
+
     tp_id = RE_TP_ID.search(url).group(1)
     video = PBS(String.Decode(API_ID), String.Decode(API_SECRET)).videos.get(DETAILS + tp_id)
 
@@ -20,26 +24,31 @@ def MetadataObjectForURL(url):
 
     video = video['results'][0]
     thumbs = SortThumbs(video['associated_images'])
+
     try:
         airdate = Datetime.ParseDate(video['airdate']).date()
     except:
         airdate = None
+
     summary = video['long_description']
     title = video['title']
+
     try:
         duration = int(video['mediafiles'][0]['length_mseconds'])
     except:
         duration = None
 
-    return  VideoClipObject(
-        title=title,
-        summary=summary,
-        originally_available_at=airdate,
-        duration=duration,
-        thumb=Resource.ContentsOfURLWithFallback(url=thumbs)
+    return VideoClipObject(
+        title = title,
+        summary = summary,
+        originally_available_at = airdate,
+        duration = duration,
+        thumb = Resource.ContentsOfURLWithFallback(url=thumbs)
     )
 
+####################################################################################################
 def MediaObjectsForURL(url):
+
     return [
         MediaObject(
             parts = [PartObject(key=Callback(PlayVideo, url=url))],
@@ -50,8 +59,10 @@ def MediaObjectsForURL(url):
         )
     ]
 
+####################################################################################################
 @indirect
 def PlayVideo(url, **kwargs):
+
     video_url = None
     tp_id = RE_TP_ID.search(url).group(1)
     video = PBS(String.Decode(API_ID), String.Decode(API_SECRET)).videos.get(DETAILS + tp_id)
@@ -136,27 +147,9 @@ def PlayVideo(url, **kwargs):
         Log.Debug(clip)
         raise Ex.MediaNotAvailable
 
-        ### Keeping this code just in case MP4s aren't available for all videos -- this was the previous parsing and still worth keeping details of just in case we find more like this ###
-        '''
-        video_url = video['mediafiles'][-1]['video_data_url']
-        Log(HTTP.Request(video_url + '&format=SMIL').content)
-        smil = XML.ElementFromURL(video_url + '&format=SMIL')
-        base = smil.xpath('//a:meta', namespaces=NAMESPACES)[0].get('base')
-        clip = smil.xpath('//a:ref', namespaces=NAMESPACES)[0].get('src')
-
-        if base.startswith('http'):
-            final_url = base + clip
-            if '.m3u8' in clip:
-                Log('HTTPLiveStreamURL: %s' % final_url)
-                return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=final_url))
-            else:
-                return IndirectResponse(VideoClipObject, key=final_url)
-        else:
-            clip = 'MP4:' + clip.split('.mp4')[0]
-            return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=base, clip=clip))
-        '''
-
+####################################################################################################
 def TestURLs():
+
     test_urls = []
 
     for show in HTML.ElementFromURL(PBS_URL).xpath('//div[@id="most-watched-videos"]//li'):
