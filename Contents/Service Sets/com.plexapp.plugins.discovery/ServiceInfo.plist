@@ -18,6 +18,15 @@
 				<string>^http://(www\.)?america\.discovery\.com/</string>
 				<string>^http://(www\.)?military\.discovery\.com/</string>
 				<string>^http://(www\.)?velocity\.discovery\.com/</string>
+				<string>^http(s)?://(www\.)?ahctvgo\.com/</string>
+				<string>^http(s)?://(www\.)?discoverygo\.com/</string>
+				<string>^http(s)?://(www\.)?velocitychannelgo\.com/</string>
+				<string>^http(s)?://(www\.)?animalplanetgo\.com/</string>
+				<string>^http(s)?://(www\.)?discoverylifego\.com/</string>
+				<string>^http(s)?://(www\.)?tlcgo\.com/</string>
+				<string>^http(s)?://(www\.)?sciencechannelgo\.com/</string>
+				<string>^http(s)?://(www\.)?destinationamericago\.com/</string>
+				<string>^http(s)?://(www\.)?investigationdiscoverygo\.com/</string>
 			</array>
 		</dict>
 	</dict>
