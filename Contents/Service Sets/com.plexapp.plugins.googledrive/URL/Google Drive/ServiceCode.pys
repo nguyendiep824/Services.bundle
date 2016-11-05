@@ -2,6 +2,7 @@ RE_STATUS = Regex('"status","ok"')
 RE_DURATION = Regex('"length_seconds","(\d+)"')
 RE_TITLE = Regex("'title': '([^']+)'")
 RE_FMT_MAP = Regex('"fmt_stream_map","([^"]+)"')
+RE_COOKIE_VALUE = Regex('DRIVE_STREAM=([^;]+);')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -12,7 +13,7 @@ def NormalizeURL(url):
 def MetadataObjectForURL(url):
 
 	try:
-		data = HTTP.Request(url, cacheTime=300).content
+		data = HTTP.Request(url, cacheTime=0).content
 	except Ex.HTTPError, e:
 		if e.code == 403:
 			raise Ex.MediaNotAuthorized
@@ -38,15 +39,12 @@ def MediaObjectsForURL(url):
 	return [
 		MediaObject(
 			parts = [
-				PartObject(key=Callback(PlayVideo, url=url, post_url=url, res=resolution))
+				PartObject(key=Callback(PlayVideo, url=url, res=resolution))
 			],
 			video_resolution = resolution,
 			bitrate = bitrate,
-			container = Container.MP4,
-			video_codec = VideoCodec.H264,
-			audio_codec = AudioCodec.AAC,
 			audio_channels = 2,
-			optimized_for_streaming = True
+			optimized_for_streaming = False
 		) for resolution, bitrate in [('1080', 3000), ('720', 1500), ('360', 750)]
 	]
 
@@ -55,7 +53,7 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, res, **kwargs):
 
 	try:
-		data = HTTP.Request(url, cacheTime=300).content
+		data = HTTP.Request(url, cacheTime=0)
 	except Ex.HTTPError, e:
 		if e.code == 403:
 			raise Ex.MediaNotAuthorized
@@ -64,19 +62,22 @@ def PlayVideo(url, res, **kwargs):
 	except:
 		raise Ex.MediaNotAvailable
 
-	if not RE_STATUS.search(data):
+	if not RE_STATUS.search(data.content):
 		raise Ex.MediaNotAvailable
 
-	fmts = RE_FMT_MAP.search(data).group(1).decode('unicode_escape').split(',')
+	cookie_value = RE_COOKIE_VALUE.search(data.headers['set-cookie']).group(1)
+	http_cookies = 'DRIVE_STREAM=%s; path=/; domain=.docs.google.com;' % (cookie_value)
+
+	fmts = RE_FMT_MAP.search(data.content).group(1).decode('unicode_escape').split(',')
 
 	for fmt in fmts:
 		if fmt.startswith('37|') and res == '1080':
-			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1])
+			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies=http_cookies)
 
 	for fmt in fmts:
 		if fmt.startswith('22|') and res in ('1080', '720'):
-			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1])
+			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies=http_cookies)
 
 	for fmt in fmts:
 		if fmt.startswith('18|'):
-			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1])
+			return IndirectResponse(VideoClipObject, key=fmt.split('|')[1], http_cookies=http_cookies)
