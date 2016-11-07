@@ -3,6 +3,7 @@ RE_DURATION = Regex('"length_seconds","(\d+)"')
 RE_TITLE = Regex("'title': '([^']+)'")
 RE_FMT_MAP = Regex('"fmt_stream_map","([^"]+)"')
 RE_COOKIE_VALUE = Regex('DRIVE_STREAM=([^;]+);')
+RE_DOMAIN = Regex(r'https?://([^\/]+)')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -66,7 +67,8 @@ def PlayVideo(url, res, **kwargs):
 		raise Ex.MediaNotAvailable
 
 	cookie_value = RE_COOKIE_VALUE.search(data.headers['set-cookie']).group(1)
-	http_cookies = 'DRIVE_STREAM=%s; path=/; domain=.docs.google.com;' % (cookie_value)
+	domain = RE_DOMAIN.search(url).group(1)
+	http_cookies = 'DRIVE_STREAM=%s; path=/; domain=.%s;' % (cookie_value, domain)
 
 	fmts = RE_FMT_MAP.search(data.content).group(1).decode('unicode_escape').split(',')
 
