@@ -8,14 +8,18 @@
 		<dict>
 			<key>TestURLs</key>
 			<array>
-				<string>http://www.srf.ch/player/tv/10vor10/video/ganze-sendung?id=fd059f15-a2cb-4e73-ae9f-a436accb545f</string>
-				<string>http://www.srf.ch/player/tv/1-gegen-100/video/montag-5--november-2012?id=603d57b7-3c11-44e1-b54d-7a321aaf92f6</string>
+				<string>https://il.srgssr.ch/integrationlayer/1.0/ue/srf/video/play/a4340031-4c46-4e71-8263-fa9cc3e56f00.json</string>
+				<string>http://www.srf.ch/sendungen/einstein/drohnenland-schweiz</string>
 			</array>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http://www.srf.ch/player/tv/.+/video/.+\?id=.+</string>
+				<!-- Used for internal redirects -->
+				<string>^https://il.srgssr.ch/integrationlayer/1.0/ue/srf/video/play/.+</string>
+				<!-- Used for external redirects per direct URL -->
+				<string>^http://www.srf.ch/sendungen/.+</string>
 			</array>
 		</dict>
+	</dict>
 	</dict>
 </dict>
 </plist>
