@@ -11,7 +11,7 @@ def NormalizeURL(url):
 def MetadataObjectForURL(url):
 
     # Do we have an external link?
-    if url.startswith('http://www.srf.ch/sendungen'):
+    if url.startswith('http://www.srf.ch/sendungen/'):
         html = HTML.ElementFromURL(url)
         video_guid = html.xpath('//a[@data-inline="video"]')[0].get('data-urn')[-36:]
 
@@ -75,6 +75,14 @@ def MediaObjectsForURL(url):
 ####################################################################################################
 @indirect
 def PlayVideo(url):
+
+    # Do we have an external link?
+    if url.startswith('http://www.srf.ch/sendungen/'):
+        html = HTML.ElementFromURL(url)
+        video_guid = html.xpath('//a[@data-inline="video"]')[0].get('data-urn')[-36:]
+
+        # We construct the detail url here
+        url = API_ITEM %video_guid
 
     # Load metadata for detail informations
     try:
