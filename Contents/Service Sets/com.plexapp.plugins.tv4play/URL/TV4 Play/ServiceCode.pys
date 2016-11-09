@@ -139,7 +139,7 @@ def GetURLs(id):
     if not is_live:
         try:
             xmlElement = XML.ElementFromURL(
-                url = API_VIDEO_URL % ('/api/web/asset/' + str(id) + '/play?protocol=hls&videoFormat=MP4+WEBVTTS'),
+                url = API_VIDEO_URL % ('/api/web/asset/' + str(id) + '/play'),
                 headers = headers
             )
         except:
@@ -161,7 +161,10 @@ def GetURLs(id):
             url         = item.xpath(".//url/text()")[0]
             mediaFormat = item.xpath(".//mediaFormat/text()")[0]
             
-            if url.startswith('http') and '.m3u8' in url:
+            if url.startswith('http') and (('.m3u8' in url) or ('.f4m' in url)):
+                if '.f4m' in url:
+                    url = url.replace('tv4playhds-f.akamaihd.net/z/', 'tv4play-i.akamaihd.net/i/').replace('manifest.f4m', 'master.m3u8')
+                
                 if mediaFormat == 'mp4' or mediaFormat == 'livehls':
                     hls_url = GetClientDependentURL(url)
                     
