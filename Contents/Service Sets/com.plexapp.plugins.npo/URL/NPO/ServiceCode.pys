@@ -30,6 +30,10 @@ XPATH_RELEASE_DATE = [
 	'//div[contains(@itemtype, "TVEpisode")]//span[@itemprop="startDate"]/text()'
 ]
 
+XPATH_DURATION = [
+	'//meta[@name="og:video:duration" or @property="og:video:duration"]/@content'
+]
+
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -66,7 +70,7 @@ def MetadataObjectForURL(url):
 		originally_available_at = None
 
 	try:
-		duration = html.xpath('//meta[@name="og:video:duration"]/@content')[0]
+		duration = html.xpath('|'.join(XPATH_DURATION))[0]
 		duration = int(duration) * 1000
 	except:
 		duration = None
