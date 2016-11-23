@@ -9,25 +9,24 @@ HTTP_HEADERS = {
 
 # Xpath queries for metadata
 XPATH_TITLE = [
-	'//meta[@name="og:title"]/@content',
+	'//meta[@name="og:title" or @property="og:title"]/@content',
 	'//div[contains(@itemtype, "TVEpisode") or contains(@itemtype, "VideoObject")]//span[@itemprop="name"]/text()',
 	'//div[contains(@itemtype, "TVEpisode") or contains(@itemtype, "VideoObject")]//meta[@itemprop="name"]/@content'
 ]
 
 XPATH_SUMMARY = [
-	'//meta[@name="og:description"]/@content',
+	'//meta[@name="og:description" or @property="og:description"]/@content',
 	'//div[contains(@itemtype, "TVEpisode") or contains(@itemtype, "VideoObject")]//span[@itemprop="description"]/text()',
 	'//div[contains(@itemtype, "TVEpisode") or contains(@itemtype, "VideoObject")]//meta[@itemprop="description"]/@content'
 ]
 
 XPATH_THUMB = [
-	'//meta[@name="og:image"]/@content',
-	'//meta[@property="og:image"]/@content',
+	'//meta[@name="og:image" or @property="og:image"]/@content',
 	'//img[@class="background-image"]/@src'
 ]
 
 XPATH_RELEASE_DATE = [
-	'//meta[@name="og:video:release_date"]/@content',
+	'//meta[@name="og:video:release_date" or @property="og:video:release_date"]/@content',
 	'//div[contains(@itemtype, "TVEpisode")]//span[@itemprop="startDate"]/text()'
 ]
 
