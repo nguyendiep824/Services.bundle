@@ -22,6 +22,7 @@ XPATH_SUMMARY = [
 
 XPATH_THUMB = [
 	'//meta[@name="og:image"]/@content',
+	'//meta[@property="og:image"]/@content',
 	'//img[@class="background-image"]/@src'
 ]
 
@@ -55,7 +56,7 @@ def MetadataObjectForURL(url):
 		summary = None
 
 	try:
-		thumb = html.xpath('|'.join(XPATH_THUMB))[0].split('?')[0].replace('.png', '.jpg')
+		thumb = 'http://%s' % (html.xpath('|'.join(XPATH_THUMB))[0].split('?')[0].replace('.png', '.jpg').split('//')[-1])
 	except:
 		thumb = ''
 
