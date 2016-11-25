@@ -1,6 +1,7 @@
 TOKEN_URL = 'http://ida.omroep.nl/npoplayer/i.js'
 STREAM_URL = 'http://ida.omroep.nl/odi/?prid=%s&puboptions=adaptive&adaptive=yes&part=1&token=%s'
 RE_TOKEN = Regex('token = "([^"]+)"')
+RE_VARIANTS = Regex('RESOLUTION=\d+x(\d+).*\n(.+\.m3u8)')
 
 HTTP_HEADERS = {
 	'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 6_0_1 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A523 Safari/8536.25',
@@ -119,11 +120,17 @@ def PlayVideo(url, **kwargs):
 
 	try:
 		json = JSON.ObjectFromURL(stream, cacheTime=0)
-		stream = json['url']
+		m3u8_url = json['url']
 	except:
 		raise Ex.MediaNotAvailable
 
-	return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(stream))
+	m3u8_playlist = HTTP.Request(m3u8_url).content
+	variants = RE_VARIANTS.findall(m3u8_playlist)
+	variants = sorted(variants, key=lambda x: int(x[0]))
+
+	video_url = '%s/%s' % (m3u8_url.rsplit('/', 1)[0], variants[-1][1])
+
+	return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(video_url))
 
 ####################################################################################################
 def GetPlayerId(url):
