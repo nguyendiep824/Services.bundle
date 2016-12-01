@@ -39,6 +39,9 @@ def MediaObjectsForURL(url):
 
 		json_obj = JSON.ObjectFromURL(MEDIA_URL % (item['guid']), cacheTime=CACHE_1HOUR)
 
+		if not 'rendition' in json_obj['package']['video']['item'][0]:
+			continue
+
 		for rendition in json_obj['package']['video']['item'][0]['rendition']:
 
 			if int(rendition['height']) < 360:
