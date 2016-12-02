@@ -1,5 +1,6 @@
 META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&configtype=edge'
 MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?format=json'
+URI = 'mgid:arc:episode:southparkstudios.com:%s'
 
 RE_BITRATE = Regex('_\d+x\d+_(\d+).*\.mp4')
 
@@ -34,6 +35,9 @@ def MediaObjectsForURL(url):
 	available_streams = {}
 
 	for item in json_obj['items']:
+
+		if item['duration'] < 8:
+			continue
 
 		json_obj = JSON.ObjectFromURL(MEDIA_URL % (item['guid']), cacheTime=CACHE_1HOUR)
 
@@ -107,10 +111,10 @@ def GetURI(url):
 	except:
 		raise Ex.MediaNotAvailable
 
-	mgid = html.xpath('//div[contains(@id, "player") and @data-mgid]/@data-mgid')
+	mgid = html.xpath('//body[@data-now-playing]/@data-now-playing')
 
 	if len(mgid) < 1:
 		Log('mgid xpath failed')
 		raise Ex.MediaNotAvailable
 
-	return mgid[0]
+	return URI % (mgid[0])
