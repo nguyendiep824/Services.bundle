@@ -1,9 +1,8 @@
-MRSS_URL = 'http://%s/feeds/video-player/mrss/%s'
-MGID = 'mgid:arc:episode:southparkstudios.com:%s'
-NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
+META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&configtype=edge'
+MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?format=json'
 
-RE_EP_DATA = Regex('\/s(?P<season>\d+)e(?P<episode>\d+)\-')
- 
+RE_BITRATE = Regex('_\d+x\d+_(\d+).*\.mp4')
+
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -12,111 +11,106 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
+	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
+
+	duration = 0
+
+	for item in json_obj['items']:
+		duration += item['duration']
+
+	return VideoClipObject(
+		title = json_obj['title'],
+		summary = json_obj['description'],
+		duration = int(duration * 1000),
+		thumb = Resource.ContentsOfURLWithFallback(url=json_obj['image']['url'].split('?')[0]),
+		originally_available_at = Datetime.ParseDate(json_obj['items'][0]['pubDate'])
+	)
+
+####################################################################################################
+@deferred
+def MediaObjectsForURL(url):
+
+	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
+	available_streams = {}
+
+	for item in json_obj['items']:
+
+		json_obj = JSON.ObjectFromURL(MEDIA_URL % (item['guid']), cacheTime=CACHE_1HOUR)
+
+		if not 'rendition' in json_obj['package']['video']['item'][0]:
+			continue
+
+		for rendition in json_obj['package']['video']['item'][0]['rendition']:
+
+			if int(rendition['height']) < 360:
+				continue
+
+			rtmp_url = rendition['src']
+			bitrate = RE_BITRATE.search(rtmp_url).group(1)
+
+			if bitrate not in available_streams:
+				available_streams[bitrate] = []
+
+			part = {}
+			part['rtmp_url'] = rtmp_url
+			part['height'] = rendition['height']
+			part['duration'] = rendition['duration']
+
+			available_streams[bitrate].append(part)
+
+	media_objects = []
+	bitrates = [int(i) for i in available_streams.keys()]
+	bitrates.sort(reverse=True)
+
+	for bitrate in bitrates:
+
+		parts = []
+
+		for part in available_streams[str(bitrate)]:
+
+			parts.append(
+				PartObject(
+					key = RTMPVideoURL(
+						url='rtmpe://viacommtvstrmfs.fplive.net:1935/viacommtvstrm',
+						clip='mp4:%s' % (part['rtmp_url'].split('/viacomccstrm/')[-1].split('/mtvnorigin/')[-1])
+					),
+					duration = int(part['duration'])*1000
+				)
+			)
+
+			video_resolution = int(part['height'])
+
+		media_objects.append(
+			MediaObject(
+				parts = parts,
+				video_codec = VideoCodec.H264,
+				audio_codec = AudioCodec.AAC,
+				bitrate = bitrate,
+				video_resolution = video_resolution,
+				audio_channels = 2
+			)
+		)
+
+	return media_objects
+
+####################################################################################################
+def GetURI(url):
+
 	try:
-		html = HTML.ElementFromURL(url, follow_redirects=False)
+		html = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR)
 	except Ex.HTTPError, e:
 		if e.code == 404:
 			Log('HTTP 404 Not Found for URL: %s' % url)
 			raise Ex.MediaNotAvailable
 		else:
 			raise Ex.MediaNotAvailable
-	except Ex.RedirectError, e:
-		if 'Location' in e.headers:
-			if e.headers['Location'] == url:
-				Log('Redirect loop for URL: %s' % url)
-				raise Ex.MediaNotAvailable
-			else:
-				return URLService.MetadataObjectForURL(e.headers['Location'])
-		else:
-			raise Ex.MediaNotAvailable
 	except:
 		raise Ex.MediaNotAvailable
 
-	title = html.xpath('//meta[@property="og:title"]/@content')[0].split(' (Season')[0]
-	summary = html.xpath('//meta[@property="og:description"]/@content|//meta[@name="og:description"]/@content')[0]
-	thumb = html.xpath('//meta[@property="og:image"]/@content')[0].split('?')[0].replace('_4x3.jpg', '_16x9.jpg')
-
-	if '/full-episodes/' in url:
-		ep_data = RE_EP_DATA.search(url).groupdict()
-		season = ep_data['season']
-		index = ep_data['episode']
-
-		return EpisodeObject(
-			title = title,
-			show = "South Park",
-			season = int(season),
-			index = int(index),
-			summary = summary,
-			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
-		)
-	else:
-		return VideoClipObject(
-			title = title,
-			summary = summary,
-			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
-		)
-
-####################################################################################################
-@deferred
-def MediaObjectsForURL(url):
-
-	html = HTML.ElementFromURL(url)
-	mgid = html.xpath('//*[@id="player_page_player"]/@data-mgid')
+	mgid = html.xpath('//div[contains(@id, "player") and @data-mgid]/@data-mgid')
 
 	if len(mgid) < 1:
-		try:
-			mgid_num = html.xpath('//@data-now-playing')
-			mgid = MGID %mgid_num
-		except:
-			Log('no mgid found')
-			raise Ex.MediaNotAvailable
-	else:
-		mgid = mgid[0]
-
-	host = url.split('/')[2]
-
-	mrss_data = XML.ElementFromURL(MRSS_URL % (host, mgid))
-
-	media_urls = mrss_data.xpath('//media:content[@medium="video"]/@url', namespaces=NAMESPACES)
-	if len(media_urls) < 1:
+		Log('mgid xpath failed')
 		raise Ex.MediaNotAvailable
 
-	available_streams = []
-
-	for media_url in media_urls:
-
-		try:
-			hls_data = XML.ElementFromURL(media_url.replace('{device}', 'iPad'), cacheTime=CACHE_1HOUR)
-		except:
-			raise Ex.MediaNotAvailable
-
-		# Skip parts that are too short and cause issues in some Plex players
-		part_duration = hls_data.xpath('//rendition/@duration')[0]
-		if int(part_duration) <8:
-			continue
-		# Create part for the video section
-		part = {}
-		part['duration'] = part_duration
-		part['hls_url'] = hls_data.xpath('//rendition/src/text()')[0]
-		available_streams.append(part)
-
-		media_objects = []
-		# Build media objects for hls videos
-		parts = []
-		for part in available_streams:
-			parts.append(
-				PartObject(
-					key = HTTPLiveStreamURL(part['hls_url']),
-					duration = int(part['duration'])*1000
-				)
-			)
-
-		media_objects.append(
-			MediaObject(
-				parts = parts,
-				protocol = 'hls',
-				container = 'mpegts'
-			)
-		)
-
-	return media_objects
+	return mgid[0]
