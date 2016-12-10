@@ -17,6 +17,9 @@ def MetadataObjectForURL(url):
 	video_id = GetVideoId(url)
 	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
 
+	if not 'video' in json_obj:
+		raise Ex.MediaNotAvailable
+
 	return EpisodeObject(
 		show = json_obj['video']['show']['title'],
 		title = json_obj['video']['title'],
@@ -50,6 +53,9 @@ def PlayVideo(url, **kwargs):
 
 	video_id = GetVideoId(url)
 	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
+
+	if not 'video' in json_obj:
+		raise Ex.MediaNotAvailable
 
 	m3u8_base_url = json_obj['video']['assets'][0]['value']
 
