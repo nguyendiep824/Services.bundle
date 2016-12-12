@@ -1,5 +1,3 @@
-import os
-
 TOKEN_URL = 'http://ida.omroep.nl/npoplayer/i.js'
 STREAM_URL = 'http://ida.omroep.nl/odi/?prid=%s&puboptions=adaptive&adaptive=yes&part=1&token=%s'
 RE_TOKEN = Regex('token = "([^"]+)"')
@@ -101,6 +99,7 @@ def MediaObjectsForURL(url):
 	]
 
 ####################################################################################################
+@indirect
 def PlayVideo(url, **kwargs):
 
 	player_id = GetPlayerId(url)
@@ -129,23 +128,9 @@ def PlayVideo(url, **kwargs):
 	variants = RE_VARIANTS.findall(m3u8_playlist)
 	variants = sorted(variants, key=lambda x: int(x[0]))
 
-	base_url = m3u8_url.rsplit('/', 1)[0]
+	video_url = '%s/%s' % (m3u8_url.rsplit('/', 1)[0], variants[-1][1])
 
-	best_variant_url = '%s/%s' % (base_url, variants[-1][1])
-
-	m3u8_playlist = HTTP.Request(best_variant_url).content
-
-	new_playlist = ''
-
-	for line in m3u8_playlist.splitlines(False):
-
-		if line.startswith('#'):
-			new_playlist += '%s\n' % (line)
-		elif '.ts' in line:
-			segment_url = Callback(ContentOfURL, url='%s/%s' % (base_url, line))
-			new_playlist += '%s&X-Plex-Token=%s\n' % (segment_url, os.environ['PLEXTOKEN'])
-
-	return new_playlist
+	return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(video_url))
 
 ####################################################################################################
 def GetPlayerId(url):
@@ -154,11 +139,6 @@ def GetPlayerId(url):
 		return url.split('/')[-1]
 
 	return None
-
-####################################################################################################
-def ContentOfURL(url):
-
-	return HTTP.Request(url, cacheTime=0).content
 
 ####################################################################################################
 # SwapToken function from Retrospect - http://www.rieter.net/content/
