@@ -104,7 +104,10 @@ def GetJson(url):
 
 	video_id = url.split('/')[-1]
 
-	api_url = API_URL % (api_version, script_version, video_id)
+	try:
+		api_url = API_URL % (api_version, script_version, video_id)
+	except:
+		raise Ex.MediaNotAvailable
 
 	return JSON.ObjectFromURL(api_url)
 
