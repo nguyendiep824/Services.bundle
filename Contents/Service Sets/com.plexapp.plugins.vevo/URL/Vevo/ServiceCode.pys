@@ -1,5 +1,5 @@
 HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'}
-RE_JSON = Regex('window\.__INITIAL_STORE__ = (\{.+?\});')
+RE_JSON = Regex('window\.__INITIAL_STORE__=(\{.+?\});')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -16,7 +16,7 @@ def MetadataObjectForURL(url):
 	duration = int(float(json_obj['duration']) * 1000)
 	originally_available_at = Datetime.ParseDate(json_obj['releaseDate'].split('T')[0])
 	genres = [genre for genre in json_obj['genres']]
-	thumb = json_obj['thumbnailUrl']
+	thumb = 'http://%s' % (json_obj['thumbnailUrl'].split('//')[-1])
 
 	return VideoClipObject(
 		title = '%s - %s' % (artist, title),
@@ -53,7 +53,7 @@ def PlayVideo(url, resolution='720', **kwargs):
 	version_high = 0
 	version_med = 0
 
-	for stream in json_obj[0]:
+	for stream in json_obj:
 
 		if not 'quality' in stream:
 			continue
@@ -74,7 +74,7 @@ def PlayVideo(url, resolution='720', **kwargs):
 	else:
 		raise Ex.MediaNotAvailable
 
-	return IndirectResponse(VideoClipObject, key=video_url)
+	return IndirectResponse(VideoClipObject, key='http://%s' % (video_url.split('//')[-1]))
 
 ####################################################################################################
 def GetJSON(url, type='metadata'):
