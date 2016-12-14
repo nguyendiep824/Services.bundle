@@ -4,7 +4,7 @@ HTTP_HEADERS = {
 }
 
 METADATA_URL = 'https://api.pluto.watchabc.go.com/api/ws/pluto/v1/module/videoplayer/1350290?brand=001&device=002&video=%s'
-ENTITLEMENT_URL = 'https://api.entitlement.watchabc.go.com/vp2/ws-secure/entitlement/2020/authorize.json'
+ENTITLEMENT_URL = 'http://api.entitlement.watchabc.go.com/vp2/ws-secure/entitlement/2020/authorize.json'
 
 ####################################################################################################
 def NormalizeURL(url):
