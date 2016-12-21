@@ -6,13 +6,9 @@
 	<dict>
 		<key>CNET</key>
 		<dict>
-			<key>TestURLs</key>
-			<array>
-				<string>http://www.cnet.com/videos/should-apple-be-worried-about-the-galaxy-s5/</string>
-			</array>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http:\/\/www\.cnet\.com\/(.+\/)?videos\/.+</string>
+				<string>^https?:\/\/www\.cnet\.com\/(.+\/)?videos\/.+</string>
 			</array>
 		</dict>
 	</dict>

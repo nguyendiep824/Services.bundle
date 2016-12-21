@@ -1,3 +1,5 @@
+NAMESPACES = {'smil': 'http://www.w3.org/2005/SMIL21/Language'}
+
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -10,7 +12,15 @@ def MetadataObjectForURL(url):
 
 	title = html.xpath('//meta[@itemprop="name"]/@content')[0]
 	summary = html.xpath('//meta[@itemprop="description"]/@content')[0]
+
+	try:
+		originally_available_at = html.xpath('//meta[@itemprop="uploadDate"]/@content')[0].split('UTC')[0]
+		originally_available_at = Datetime.ParseDate(originally_available_at).date()
+	except:
+		originally_available_at = None
+
 	thumb = html.xpath('//meta[@itemprop="thumbnailUrl"]/@content')[0]
+
 	duration = html.xpath('//meta[@itemprop="duration"]/@content')[0]
 
 	if ':' in duration:
@@ -21,8 +31,9 @@ def MetadataObjectForURL(url):
 	return VideoClipObject(
 		title = title,
 		summary = summary,
+		originally_available_at = originally_available_at,
 		duration = duration,
-		thumb = Resource.ContentsOfURLWithFallback(thumb)
+		thumb = Resource.ContentsOfURLWithFallback(url=thumb)
 	)
 
 ####################################################################################################
@@ -31,33 +42,43 @@ def MediaObjectsForURL(url):
 	return [
 		MediaObject(
 			parts = [
-				PartObject(
-					key=HTTPLiveStreamURL(Callback(PlayVideo, url=url))
-				)
+				PartObject(key=Callback(PlayVideo, url=url, resolution=resolution))
 			],
-			video_resolution = '720',
+			container = Container.MP4,
+			video_codec = VideoCodec.H264,
+			video_resolution = resolution,
+			audio_codec = AudioCodec.AAC,
 			audio_channels = 2,
 			optimized_for_streaming = True
-		)
+		) for resolution in ['1080', '720', '360']
 	]
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, **kwargs):
+def PlayVideo(url, resolution='1080', **kwargs):
 
 	json_obj = GetJSON(url)
 
-	if not 'files' in json_obj or not 'hls_tablet' in json_obj['files'] or json_obj['files']['hls_tablet'] is None:
+	if not 'files' in json_obj or not 'hds' in json_obj['files'] or json_obj['files']['hds'] is None:
 		raise Ex.MediaNotAvailable
 
-	video_id = json_obj['files']['hls_tablet']
-	video_url = 'http://link.theplatform.com/s/kYEXFC/%s' % (video_id)
+	video_id = json_obj['files']['hds']
+	smil_url = 'https://link.theplatform.com/s/kYEXFC/%s?format=SMIL&mbr=true&switch=secure' % (video_id)
 
-	try:
-		headers = HTTP.Request(video_url, follow_redirects=False).headers
-	except Ex.RedirectError, e:
-		if 'Location' in e.headers:
-			video_url = e.headers['Location']
+	xml = XML.ElementFromURL(smil_url)
+
+	video_1080 = xml.xpath('//smil:video[@height="1080"]', namespaces=NAMESPACES)
+	video_720 = xml.xpath('//smil:video[@height="720"]', namespaces=NAMESPACES)
+	video_360 = xml.xpath('//smil:video[@height="360"]', namespaces=NAMESPACES)
+
+	if resolution == '1080' and len(video_1080) > 0:
+		video_url = video_1080[0].get('src')
+	elif resolution in ['1080', '720'] and len(video_720) > 0:
+		video_url = video_720[0].get('src')
+	elif resolution in ['1080', '720', '360'] and len(video_360) > 0:
+		video_url = video_360[0].get('src')
+	else:
+		raise Ex.MediaNotAvailable
 
 	return IndirectResponse(VideoClipObject, key=video_url)
 
@@ -65,7 +86,7 @@ def PlayVideo(url, **kwargs):
 def GetJSON(url):
 
 	html = HTML.ElementFromURL(url)
-	json = html.xpath('//div[@data-cnet-video-uvp-options]/@data-cnet-video-uvp-options')
+	json = html.xpath('//div[@class="videoPlayer"]/@data-cnet-video-options')
 
 	if len(json) < 1:
 		raise Ex.MediaNotAvailable
