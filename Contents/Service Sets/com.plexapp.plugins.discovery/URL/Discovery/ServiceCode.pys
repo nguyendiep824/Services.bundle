@@ -96,7 +96,10 @@ def MediaObjectsForURL(url):
             json = JSON.ObjectFromString(json_string)
         except:
             raise Ex.MediaNotAvailable
-            
+
+        if not 'stream' in json:
+            raise Ex.MediaNotAvailable
+
         return [
             MediaObject(
                 audio_channels = 2,
