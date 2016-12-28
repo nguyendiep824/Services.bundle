@@ -15,7 +15,7 @@ def MetadataObjectForURL(url):
 	title = json_obj['title']
 	duration = int(float(json_obj['duration']) * 1000)
 	originally_available_at = Datetime.ParseDate(json_obj['releaseDate'].split('T')[0])
-	genres = [genre for genre in json_obj['genres']]
+	genres = [genre for genre in json_obj['genres']] if 'genres' in json_obj else []
 	thumb = 'http://%s' % (json_obj['thumbnailUrl'].split('//')[-1])
 
 	return VideoClipObject(
