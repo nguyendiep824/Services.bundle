@@ -1,5 +1,3 @@
-import os
-
 TOKEN_URL = 'http://ida.omroep.nl/npoplayer/i.js'
 STREAM_URL = 'http://ida.omroep.nl/odi/?prid=%s&puboptions=h264_std&adaptive=yes&token=%s'
 RE_TOKEN = Regex('token = "([^"]+)"')
