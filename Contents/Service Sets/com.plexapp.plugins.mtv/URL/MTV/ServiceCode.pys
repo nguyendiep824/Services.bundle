@@ -4,10 +4,10 @@ RE_VEVO_URL_PATH = Regex('http://www\.(?:mtv|vh1)\.com/videos?/([^/]+)/\d+/(.+?)
 RE_VEVO_ID = Regex("MTVN.VIDEO.isrc = '(.+?)';")
 RE_VEVO = Regex("MTVN.VIDEO.isVevo = (true|false);")
 
-MRSS_URL = 'http://%s/feeds/mrss?uri=%s&isEpisode=true'
+MRSS_URL = 'http://www.%s/feeds/mrss?uri=%s&isEpisode=true'
 NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
 
-MGID_FORMAT = 'mgid:arc:%s:mtv.com:%s'
+MGID_FORMAT = 'mgid:arc:%s:%s:%s'
 RE_MANIFEST_FEED = Regex('var triforceManifestFeed = (.+?);\n', Regex.DOTALL)
 
 ####################################################################################################
@@ -160,14 +160,15 @@ def GetRSS(url):
     video_id = json['manifest']['reporting']['itemId']
     # The page type is either ENT_P006 - full episode player or ENT_P008 - video clip player
     page_type = json['manifest']['type']
+    # get the host url
+    host = url.split('//www.')[1].split('/')[0]
     if 'ENT_P006' in page_type:
-        mgid = MGID_FORMAT %('episode', video_id)
+        mgid = MGID_FORMAT %(host, 'episode', video_id)
     else:
-        mgid = MGID_FORMAT %('video', video_id)
+        mgid = MGID_FORMAT %(host, 'video', video_id)
 
     # Find the host and build the mgid
     if mgid:
-        host = url.split('//')[1].split('/')[0]
         try: xml = XML.ElementFromURL(MRSS_URL % (host, mgid))
         except: raise Ex.MediaNotAvailable
     else:
