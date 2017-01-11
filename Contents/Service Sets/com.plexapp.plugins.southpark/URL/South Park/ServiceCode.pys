@@ -1,8 +1,6 @@
 META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&configtype=edge'
-MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?format=json'
+MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?device=iPad&format=json'
 URI = 'mgid:arc:episode:southparkstudios.com:%s'
-
-RE_BITRATE = Regex('_\d+x\d+_(\d+).*\.mp4')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -66,18 +64,14 @@ def MediaObjectsForURL(url):
 
 		for rendition in json_obj['package']['video']['item'][0]['rendition']:
 
-			if int(rendition['height']) < 360:
-				continue
-
-			rtmp_url = rendition['src']
-			bitrate = RE_BITRATE.search(rtmp_url).group(1)
+			hls_url = rendition['src']
+			bitrate = '1200'
 
 			if bitrate not in available_streams:
 				available_streams[bitrate] = []
 
 			part = {}
-			part['rtmp_url'] = rtmp_url
-			part['height'] = rendition['height']
+			part['hls_url'] = hls_url
 			part['duration'] = rendition['duration']
 
 			available_streams[bitrate].append(part)
@@ -94,23 +88,18 @@ def MediaObjectsForURL(url):
 
 			parts.append(
 				PartObject(
-					key = RTMPVideoURL(
-						url='rtmpe://viacommtvstrmfs.fplive.net:1935/viacommtvstrm',
-						clip='mp4:%s' % (part['rtmp_url'].split('/viacomccstrm/')[-1].split('/mtvnorigin/')[-1])
+					key = HTTPLiveStreamURL(
+						url = part['hls_url']
 					),
 					duration = int(part['duration'])*1000
 				)
 			)
 
-			video_resolution = int(part['height'])
-
 		media_objects.append(
 			MediaObject(
 				parts = parts,
-				video_codec = VideoCodec.H264,
-				audio_codec = AudioCodec.AAC,
 				bitrate = bitrate,
-				video_resolution = video_resolution,
+				video_resolution = 720,
 				audio_channels = 2
 			)
 		)
