@@ -6,14 +6,9 @@
 	<dict>
 		<key>FunnyOrDie</key>
 		<dict>
-			<key>TestURLs</key>
-			<array>
-				<string>http://www.funnyordie.com/videos/37627e30b8/swords-from-middlekid-josh-simpson-brad-and-scott-rodgers</string>
-				<string>http://www.funnyordie.com/embed/2fbed587d7</string>
-			</array>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http://www.funnyordie.com/(embed|videos)/([0-9a-f]{10}|\d+)</string>
+				<string>^https?:\/\/www\.funnyordie\.com\/(?:embed|videos)\/(?:[0-9a-f]{10}|\d+)</string>
 			</array>
 		</dict>
 	</dict>
