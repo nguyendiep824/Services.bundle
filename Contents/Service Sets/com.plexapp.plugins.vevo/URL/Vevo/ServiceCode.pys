@@ -43,7 +43,7 @@ def PlayVideo(url, resolution='720', **kwargs):
 	video_url_high = None
 	video_url_med = None
 
-	page = HTTP.Request(url, cacheTime=CACHE_1HOUR).content
+	page = HTTP.Request(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR).content
 	videos = RE_VIDEOS.findall(page)
 
 	for video in videos:
