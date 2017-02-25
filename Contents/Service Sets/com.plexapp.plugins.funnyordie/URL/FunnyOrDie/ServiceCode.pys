@@ -87,4 +87,4 @@ def PlayVideo(url, **kwargs):
 	if not video_url:
 		raise Ex.MediaNotAvailable
 
-	return IndirectResponse(VideoClipObject, key=video_url.group(1))
+	return IndirectResponse(VideoClipObject, key='https://%s' % (video_url.group(1).split('//')[-1]))

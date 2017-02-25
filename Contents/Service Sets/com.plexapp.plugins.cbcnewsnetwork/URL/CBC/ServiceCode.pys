@@ -53,7 +53,7 @@ def MediaObjectsForURL(url):
 ####################################################################################################
 # Example URL: http://tpfeed.cbc.ca/f/ExhSPC/vms_5akSXx4Ng_Zn?q=*&byGuid=762553411825
 @indirect
-def PlayHLS(url):
+def PlayHLS(url, **kwargs):
 	vid = url.split('/')[-1]
 
 	try:

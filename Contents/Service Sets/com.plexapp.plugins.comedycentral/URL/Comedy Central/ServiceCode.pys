@@ -1,8 +1,8 @@
-MRSS_URL = 'http://www.cc.com/feeds/mrss?uri=%s'
-NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
+META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&configtype=edge'
+MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?device=iPad&format=json'
+URI = 'mgid:arc:%s:comedycentral.com:%s'
 
-RE_FIX_XML = Regex('(<!--.*?-->)')
-RE_BITRATE = Regex('_\d+x\d+_(\d+).*\.mp4')
+RE_ID = Regex('ccnetworkapp:.{2,4}(?P<type>episode|video).{1,2}(?P<uuid>[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -12,123 +12,59 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		html = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR)
-	except Ex.HTTPError, e:
-		if e.code == 404:
-			Log('HTTP 404 Not Found for URL: %s' % url)
-			raise Ex.MediaNotAvailable
-		else:
-			raise Ex.MediaNotAvailable
-	except:
-		raise Ex.MediaNotAvailable
+	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
 
-	title = html.xpath('//meta[@property="og:title"]/@content')[0]
-	summary = html.xpath('//meta[@property="og:description"]/@content')[0]
-	thumb = html.xpath('//meta[@property="og:image"]/@content')[0].split('?')[0]
 	duration = 0
 
-	try:
-		mgid = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR).xpath('//div[@class="video_player"]/@data-mgid')
+	for item in json_obj['items']:
+		duration += item['duration']
 
-		if len(mgid) < 1:
-			raise Ex.MediaExpired
-
-		mrss_data = HTTP.Request(MRSS_URL % mgid[0], cacheTime=CACHE_1HOUR).content
-		mrss_data = RE_FIX_XML.sub('', mrss_data)
-		mrss_data = XML.ElementFromString(mrss_data)
-
-		media_urls = mrss_data.xpath('//media:content[@medium="video"]', namespaces=NAMESPACES)
-
-		for segment in media_urls:
-			if segment.get('duration') != "":
-				if ':' in segment.get('duration'):
-					duration += Datetime.MillisecondsFromString(segment.get('duration'))
-				else:
-					duration += int(float(segment.get('duration'))*1000)
-	except:
-		pass
-
-	if '/full-episodes/' in url:
-
-		try:
-			air_date = html.xpath('//title')[0].text.split(' - ')[0].strip()
-			originally_available_at = Datetime.ParseDate(air_date)
-		except:
-			originally_available_at = None
-
-		return EpisodeObject(
-			title = title,
-			summary = summary,
-			duration = duration,
-			thumb = Resource.ContentsOfURLWithFallback(url=thumb),
-			originally_available_at = originally_available_at
-		)
-
-	elif '/video-clips/' in url:
-
-		try:
-			air_date = html.xpath('//li[@class="airDate"]/text()')[0].strip()
-			originally_available_at = Datetime.ParseDate(air_date)
-		except:
-			originally_available_at = None
-
-		return VideoClipObject(
-			title = title,
-			summary = summary,
-			duration = duration,
-			thumb = Resource.ContentsOfURLWithFallback(url=thumb),
-			originally_available_at = originally_available_at
-		)
+	return VideoClipObject(
+		title = json_obj['title'],
+		summary = json_obj['description'],
+		duration = int(duration * 1000),
+		thumb = Resource.ContentsOfURLWithFallback(url=json_obj['image']['url'].split('?')[0]),
+		originally_available_at = Datetime.ParseDate(json_obj['items'][0]['pubDate'])
+	)
 
 ####################################################################################################
 @deferred
 def MediaObjectsForURL(url):
 
-	try:
-		mgid = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR).xpath('//div[@class="video_player"]/@data-mgid')
-
-		if len(mgid) < 1:
-			raise Ex.MediaNotAvailable
-	except:
-		raise Ex.MediaExpired
-
-	mrss_data = HTTP.Request(MRSS_URL % mgid[0], cacheTime=CACHE_1HOUR).content
-	mrss_data = RE_FIX_XML.sub('', mrss_data)
-	mrss_data = XML.ElementFromString(mrss_data)
-
-	media_urls = mrss_data.xpath('//media:content[@medium="video"]/@url', namespaces=NAMESPACES)
-
+	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
 	available_streams = {}
 
-	for media_url in media_urls:
+	# Check for geoblocks or errors
+	if not 'items' in json_obj:
 
-		try:
-			media_url = media_url.replace('{device}', 'pc')
-			video_data = XML.ElementFromURL(media_url, cacheTime=CACHE_1HOUR)
-		except:
+		if 'errorSlateURL' in json_obj and 'video_loc_' in json_obj['errorSlateURL']:
+			Log('Media Geoblocked')
+			raise Ex.MediaGeoblocked
+		else:
+			Log('Media Not Available')
 			raise Ex.MediaNotAvailable
 
-		renditions = video_data.xpath('//rendition[@type="video/mp4"]')
+	for item in json_obj['items']:
 
-		if len(renditions) < 1:
-			raise Ex.MediaNotAvailable
+		if item['duration'] < 8:
+			continue
 
-		for rendition in renditions:
+		json_obj = JSON.ObjectFromURL(MEDIA_URL % (item['guid']), cacheTime=CACHE_1HOUR)
 
-			if int(rendition.get('height')) < 360:
-				continue
+		if not 'rendition' in json_obj['package']['video']['item'][0]:
+			continue
 
-			rtmp_url = rendition.xpath('./src/text()')[0]
-			bitrate = RE_BITRATE.search(rtmp_url).group(1)
+		for rendition in json_obj['package']['video']['item'][0]['rendition']:
+
+			hls_url = rendition['src']
+			bitrate = '1200'
 
 			if bitrate not in available_streams:
 				available_streams[bitrate] = []
 
 			part = {}
-			part['duration'] = rendition.get('duration')
-			part['height'] = rendition.get('height')
-			part['rtmp_url'] = rtmp_url
+			part['hls_url'] = hls_url
+			part['duration'] = rendition['duration']
 
 			available_streams[bitrate].append(part)
 
@@ -144,25 +80,42 @@ def MediaObjectsForURL(url):
 
 			parts.append(
 				PartObject(
-					key = RTMPVideoURL(
-						url='rtmpe://viacommtvstrmfs.fplive.net:1935/viacommtvstrm',
-						clip='mp4:%s' % (part['rtmp_url'].split('/viacomccstrm/')[-1].split('/mtvnorigin/')[-1])
+					key = HTTPLiveStreamURL(
+						url = part['hls_url']
 					),
 					duration = int(part['duration'])*1000
 				)
 			)
 
-			video_resolution = int(part['height'])
-
 		media_objects.append(
 			MediaObject(
 				parts = parts,
-				video_codec = VideoCodec.H264,
-				audio_codec = AudioCodec.AAC,
 				bitrate = bitrate,
-				video_resolution = video_resolution,
+				video_resolution = 720,
 				audio_channels = 2
 			)
 		)
 
 	return media_objects
+
+####################################################################################################
+def GetURI(url):
+
+	try:
+		page = HTTP.Request(url, cacheTime=CACHE_1HOUR).content
+	except Ex.HTTPError, e:
+		if e.code == 404:
+			Log('HTTP 404 Not Found for URL: %s' % url)
+			raise Ex.MediaNotAvailable
+		else:
+			raise Ex.MediaNotAvailable
+	except:
+		raise Ex.MediaNotAvailable
+
+	re_result = RE_ID.search(page)
+
+	if not re_result:
+		Log('RE_ID regex failed')
+		raise Ex.MediaNotAvailable
+
+	return URI % (re_result.group('type'), re_result.group('uuid'))

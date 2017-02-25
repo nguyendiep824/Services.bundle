@@ -140,7 +140,9 @@ def PlayVideo(url, bitrate=6000, **kwargs):
 
 	if 'files' in json_obj['request'] and 'hls' in json_obj['request']['files']:
 
-		m3u8_master_url = json_obj['request']['files']['hls']['url']
+		cdn = json_obj['request']['files']['hls']['default_cdn']
+
+		m3u8_master_url = json_obj['request']['files']['hls']['cdns'][cdn]['url']
 		m3u8_master = HTTP.Request(m3u8_master_url, cacheTime=0, headers=HTTP_HEADERS).content
 		available = {}
 

@@ -4,7 +4,7 @@ HTTP_HEADERS = {
 }
 
 METADATA_URL = 'https://api.pluto.watchabc.go.com/api/ws/pluto/v1/module/videoplayer/1350290?brand=001&device=002&video=%s'
-ENTITLEMENT_URL = 'https://api.entitlement.watchabc.go.com/vp2/ws-secure/entitlement/2020/authorize.json'
+ENTITLEMENT_URL = 'http://api.entitlement.watchabc.go.com/vp2/ws-secure/entitlement/2020/authorize.json'
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -16,6 +16,9 @@ def MetadataObjectForURL(url):
 
 	video_id = GetVideoId(url)
 	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
+
+	if not 'video' in json_obj:
+		raise Ex.MediaNotAvailable
 
 	return EpisodeObject(
 		show = json_obj['video']['show']['title'],
@@ -50,6 +53,9 @@ def PlayVideo(url, **kwargs):
 
 	video_id = GetVideoId(url)
 	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
+
+	if not 'video' in json_obj:
+		raise Ex.MediaNotAvailable
 
 	m3u8_base_url = json_obj['video']['assets'][0]['value']
 

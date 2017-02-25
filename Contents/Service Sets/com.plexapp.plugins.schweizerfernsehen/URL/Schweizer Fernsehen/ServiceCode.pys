@@ -1,59 +1,113 @@
-ID_REGEX = Regex('/video/.*\?id=([^;]+)')
 
-DETAILS_URL = 'http://www.srf.ch/webservice/cvis/segment/%s/.json?nohttperr=1;omit_video_segments_validity=1;omit_related_segments=1;nearline_data=1'
-THUMB_URL = 'http://www.srf.ch/webservice/cvis/videogroup/thumbnail/%s?width=500'
-SF_SWF_URL = 'http://www.srf.ch/player/flash/srfplayer.swf'
+API_ITEM = 'https://il.srgssr.ch/integrationlayer/1.0/ue/srf/video/play/%s.json'
+
+####################################################################################################
+def NormalizeURL(url):
+
+    return url
+
 
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	id = ID_REGEX.findall(url)[0]
-	details = GetDetails(id)
+    # Do we have an external link?
+    if url.startswith('http://www.srf.ch/sendungen/'):
+        html = HTML.ElementFromURL(url)
+        video_guid = html.xpath('//a[@data-inline="video"]')[0].get('data-urn')[-36:]
 
-	return VideoClipObject(
-		title = details['video']['description_title'],
-		summary = details['description_lead'],
-		thumb = THUMB_URL % details['video']['video_group']['uuid'],
-		originally_available_at = Datetime.ParseDate(details['time_published'])
-	)
+        # We construct the detail url here
+        url = API_ITEM %video_guid
+
+    # Parse response from detail JSON and create a VideoClipObject
+    try:
+        source = JSON.ObjectFromURL(url)
+        show = source['Video']['AssetSet']['Show']
+        video = source['Video']['AssetSet']['Assets']['Video'][0]
+        video_title = source['Video']['AssetSet']['title']
+        video_thumb = ''
+
+        try:
+            video_thumb = video['Image']['ImageRepresentations']['ImageRepresentation'][0]['url']
+        except:
+            for image in show['Image']['ImageRepresentations']['ImageRepresentation']:
+                if (image['usage'] == 'WEBVISUAL'):
+                    video_thumb = image['url']
+
+        video_summary = ''
+        try:
+            video_summary = video['AssetMetadatas']['AssetMetadata'][0]['description']
+        except:
+            pass
+
+        return VideoClipObject(
+            title=video_title,
+            summary=video_summary,
+            thumb=Resource.ContentsOfURLWithFallback(video_thumb),
+            duration=source['Video']['duration'],
+            originally_available_at=Datetime.ParseDate(source['Video']['AssetSet']['createdDate'])
+        )
+
+    except Exception as e:
+        Log.Error(e)
+        raise Ex.MediaNotAvailable
+
 
 ####################################################################################################
 def MediaObjectsForURL(url):
 
-	return [
-		MediaObject(
-			parts = [PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url)))],
-			video_resolution = '720',
-			audio_channels = 2
-		)
-	]
+    return [
+        MediaObject(
+            video_codec=VideoCodec.H264,
+            video_resolution='720',
+            audio_codec=AudioCodec.AAC,
+            audio_channels=2,
+            container=Container.MP4,
+            optimized_for_streaming=True,
+            parts=[
+                PartObject(
+                    key=Callback(PlayVideo,
+                    url=url))
+            ]
+        )
+    ]
+
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, **kwargs):
+def PlayVideo(url):
 
-	id = ID_REGEX.findall(url)[0]
-	details = GetDetails(id)
+    # Do we have an external link?
+    if url.startswith('http://www.srf.ch/sendungen/'):
+        html = HTML.ElementFromURL(url)
+        video_guid = html.xpath('//a[@data-inline="video"]')[0].get('data-urn')[-36:]
 
-	playlists = details["playlists"]["playlist"] if 'playlist' in details["playlists"] else []
-	if len(playlists) == 0:
-		if 'geoblock' in details['flags']:
-			raise Ex.MediaGeoblocked
-		else:
-			raise Ex.MediaNotAvailable
+        # We construct the detail url here
+        url = API_ITEM %video_guid
 
-	if isinstance(playlists, dict):
-		stream_url = playlists['url']
-	else:
-		stream_url = filter(lambda x: x["streaming"]=="hls", details["playlists"]["playlist"])[0]['url']
+    # Load metadata for detail informations
+    try:
+        source = JSON.ObjectFromURL(url)
+        downloads = source['Video']['Downloads']['Download'][0]['url']
+    except:
+        raise Ex.MediaNotAvailable
 
-	return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url = stream_url))
+    # Do we have a GeoBlock here?
+    if source['Video']['staticGeoBlock'] == True:
+        raise Ex.MediaGeoBlocked
 
-####################################################################################################
-def GetDetails(id):
+    # Are any downloads available?
+    if len(downloads) == 0:
+        raise Ex.MediaNotAvailable
 
-	contents = HTTP.Request(DETAILS_URL % id).content
-	start = contents.find('{')
-	end = contents.rfind('}') +1
+    # Set initial a video url
+    video_url = downloads[0]['text']
 
-	return JSON.ObjectFromString(contents[start:end])
+    # Let's search for the best quality
+    for download in downloads:
+        if download['@quality'] == 'HD':
+            video_url = download['text']
+
+    if not video_url:
+        raise Ex.MediaNotAvailable
+
+    return IndirectResponse(VideoClipObject, key=video_url)

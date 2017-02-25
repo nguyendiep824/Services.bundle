@@ -126,7 +126,7 @@ def MediaObjectsForURL(url):
 
 ####################################################################################################
 @indirect
-def PlayMedia(url, type='mp3', ext='mp3'):
+def PlayMedia(url, type='mp3', ext='mp3', **kwargs):
 	Log.Debug('Getting media item URL for CBC Radio URL: ' + url)
 	
 	# url = StripHTTPS(url)

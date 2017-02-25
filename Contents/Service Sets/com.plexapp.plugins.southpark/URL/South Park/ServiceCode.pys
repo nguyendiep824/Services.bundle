@@ -1,9 +1,7 @@
-MRSS_URL = 'http://%s/feeds/video-player/mrss/%s'
-MGID = 'mgid:arc:episode:southparkstudios.com:%s'
-NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
+META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&configtype=edge'
+MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?device=iPad&format=json'
+URI = 'mgid:arc:episode:southparkstudios.com:%s'
 
-RE_EP_DATA = Regex('\/s(?P<season>\d+)e(?P<episode>\d+)\-')
- 
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -12,101 +10,87 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		html = HTML.ElementFromURL(url, follow_redirects=False)
-	except Ex.HTTPError, e:
-		if e.code == 404:
-			Log('HTTP 404 Not Found for URL: %s' % url)
-			raise Ex.MediaNotAvailable
+	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
+
+	# Check for geoblocks or errors
+	if not 'items' in json_obj:
+
+		if 'errorSlateURL' in json_obj and 'video_loc_' in json_obj['errorSlateURL']:
+			Log('Media Geoblocked')
+			raise Ex.MediaGeoblocked
 		else:
+			Log('Media Not Available')
 			raise Ex.MediaNotAvailable
-	except Ex.RedirectError, e:
-		if 'Location' in e.headers:
-			if e.headers['Location'] == url:
-				Log('Redirect loop for URL: %s' % url)
-				raise Ex.MediaNotAvailable
-			else:
-				return URLService.MetadataObjectForURL(e.headers['Location'])
-		else:
-			raise Ex.MediaNotAvailable
-	except:
-		raise Ex.MediaNotAvailable
 
-	title = html.xpath('//meta[@property="og:title"]/@content')[0].split(' (Season')[0]
-	summary = html.xpath('//meta[@property="og:description"]/@content|//meta[@name="og:description"]/@content')[0]
-	thumb = html.xpath('//meta[@property="og:image"]/@content')[0].split('?')[0].replace('_4x3.jpg', '_16x9.jpg')
+	duration = 0
 
-	if '/full-episodes/' in url:
-		ep_data = RE_EP_DATA.search(url).groupdict()
-		season = ep_data['season']
-		index = ep_data['episode']
+	for item in json_obj['items']:
+		duration += item['duration']
 
-		return EpisodeObject(
-			title = title,
-			show = "South Park",
-			season = int(season),
-			index = int(index),
-			summary = summary,
-			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
-		)
-	else:
-		return VideoClipObject(
-			title = title,
-			summary = summary,
-			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
-		)
+	return VideoClipObject(
+		title = json_obj['title'],
+		summary = json_obj['description'],
+		duration = int(duration * 1000),
+		thumb = Resource.ContentsOfURLWithFallback(url=json_obj['image']['url'].split('?')[0]),
+		originally_available_at = Datetime.ParseDate(json_obj['items'][0]['pubDate'])
+	)
 
 ####################################################################################################
 @deferred
 def MediaObjectsForURL(url):
 
-	html = HTML.ElementFromURL(url)
-	mgid = html.xpath('//*[@id="player_page_player"]/@data-mgid')
+	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
+	available_streams = {}
 
-	if len(mgid) < 1:
-		try:
-			mgid_num = html.xpath('//@data-now-playing')
-			mgid = MGID %mgid_num
-		except:
-			Log('no mgid found')
-			raise Ex.MediaNotAvailable
-	else:
-		mgid = mgid[0]
+	# Check for geoblocks or errors
+	if not 'items' in json_obj:
 
-	host = url.split('/')[2]
-
-	mrss_data = XML.ElementFromURL(MRSS_URL % (host, mgid))
-
-	media_urls = mrss_data.xpath('//media:content[@medium="video"]/@url', namespaces=NAMESPACES)
-	if len(media_urls) < 1:
-		raise Ex.MediaNotAvailable
-
-	available_streams = []
-
-	for media_url in media_urls:
-
-		try:
-			hls_data = XML.ElementFromURL(media_url.replace('{device}', 'iPad'), cacheTime=CACHE_1HOUR)
-		except:
+		if 'errorSlateURL' in json_obj and 'video_loc_' in json_obj['errorSlateURL']:
+			Log('Media Geoblocked')
+			raise Ex.MediaGeoblocked
+		else:
+			Log('Media Not Available')
 			raise Ex.MediaNotAvailable
 
-		# Skip parts that are too short and cause issues in some Plex players
-		part_duration = hls_data.xpath('//rendition/@duration')[0]
-		if int(part_duration) <8:
+	for item in json_obj['items']:
+
+		if item['duration'] < 8:
 			continue
-		# Create part for the video section
-		part = {}
-		part['duration'] = part_duration
-		part['hls_url'] = hls_data.xpath('//rendition/src/text()')[0]
-		available_streams.append(part)
 
-		media_objects = []
-		# Build media objects for hls videos
+		json_obj = JSON.ObjectFromURL(MEDIA_URL % (item['guid']), cacheTime=CACHE_1HOUR)
+
+		if not 'rendition' in json_obj['package']['video']['item'][0]:
+			continue
+
+		for rendition in json_obj['package']['video']['item'][0]['rendition']:
+
+			hls_url = rendition['src']
+			bitrate = '1200'
+
+			if bitrate not in available_streams:
+				available_streams[bitrate] = []
+
+			part = {}
+			part['hls_url'] = hls_url
+			part['duration'] = rendition['duration']
+
+			available_streams[bitrate].append(part)
+
+	media_objects = []
+	bitrates = [int(i) for i in available_streams.keys()]
+	bitrates.sort(reverse=True)
+
+	for bitrate in bitrates:
+
 		parts = []
-		for part in available_streams:
+
+		for part in available_streams[str(bitrate)]:
+
 			parts.append(
 				PartObject(
-					key = HTTPLiveStreamURL(part['hls_url']),
+					key = HTTPLiveStreamURL(
+						url = part['hls_url']
+					),
 					duration = int(part['duration'])*1000
 				)
 			)
@@ -114,9 +98,32 @@ def MediaObjectsForURL(url):
 		media_objects.append(
 			MediaObject(
 				parts = parts,
-				protocol = 'hls',
-				container = 'mpegts'
+				bitrate = bitrate,
+				video_resolution = 720,
+				audio_channels = 2
 			)
 		)
 
 	return media_objects
+
+####################################################################################################
+def GetURI(url):
+
+	try:
+		html = HTML.ElementFromURL(url, cacheTime=CACHE_1HOUR)
+	except Ex.HTTPError, e:
+		if e.code == 404:
+			Log('HTTP 404 Not Found for URL: %s' % url)
+			raise Ex.MediaNotAvailable
+		else:
+			raise Ex.MediaNotAvailable
+	except:
+		raise Ex.MediaNotAvailable
+
+	mgid = html.xpath('//body[@data-now-playing]/@data-now-playing')
+
+	if len(mgid) < 1:
+		Log('mgid xpath failed')
+		raise Ex.MediaNotAvailable
+
+	return URI % (mgid[0])

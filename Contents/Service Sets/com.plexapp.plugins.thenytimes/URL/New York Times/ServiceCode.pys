@@ -1,6 +1,6 @@
 RE_VIDEO_ID = Regex('\/(?P<video_id>\d{12,})\/')
-API_URL = 'http://www.nytimes.com/svc/video/api/v2/video/%s'
-HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+API_URL = 'https://www.nytimes.com/svc/video/api/v2/video/%s'
+HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.98 Safari/537.36'}
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -64,7 +64,7 @@ def PlayVideo(url, res=1080, **kwargs):
 
 	for video in json_obj['renditions']:
 
-		if video['video_codec'] == 'H264' and '.mp4' in video['url'] and video['height'] in resolutions and str(video['height']) not in available_videos.keys():
+		if video['video_codec'].lower() == 'h264' and '.mp4' in video['url'] and video['height'] in resolutions and str(video['height']) not in available_videos.keys():
 
 			available_videos[str(video['height'])] = video['url']
 
