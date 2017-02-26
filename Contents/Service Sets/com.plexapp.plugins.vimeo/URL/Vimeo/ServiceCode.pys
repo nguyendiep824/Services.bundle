@@ -8,7 +8,7 @@ RE_CONFIG = Regex('window.vimeo.clip_page_config = (\{.+?\});')
 RE_BANDWIDTH = Regex('BANDWIDTH=(\d+).+?\n([^\n]+)')
 
 HTTP_HEADERS = {
-	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_3) AppleWebKit/601.4.4 (KHTML, like Gecko) Version/9.0.3 Safari/601.4.4'
+	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/602.4.8 (KHTML, like Gecko) Version/10.0.3 Safari/602.4.8'
 }
 
 ####################################################################################################
@@ -143,7 +143,7 @@ def PlayVideo(url, bitrate=6000, **kwargs):
 		cdn = json_obj['request']['files']['hls']['default_cdn']
 
 		m3u8_master_url = json_obj['request']['files']['hls']['cdns'][cdn]['url']
-		m3u8_master = HTTP.Request(m3u8_master_url, cacheTime=0, headers=HTTP_HEADERS).content
+		m3u8_master = HTTP.Request(m3u8_master_url.replace('https://', 'http://'), cacheTime=0, headers=HTTP_HEADERS).content
 		available = {}
 
 		for match in RE_BANDWIDTH.findall(m3u8_master):
