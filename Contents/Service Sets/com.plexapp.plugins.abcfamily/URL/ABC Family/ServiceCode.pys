@@ -1,10 +1,11 @@
 HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36'}
 RE_SXX_EXX = Regex('Season (\d+).+Episode (\d+)')
+RE_SHOW_TITLE = Regex('Watch (.+) S\dE\d "(.+)" Online')
 
 ####################################################################################################
 def NormalizeURL(url):
 
-	return url
+	return url.replace('abcfamily.go.com', 'freeform.go.com').replace('/episode-guide/', '/episodes/')
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -21,7 +22,7 @@ def MetadataObjectForURL(url):
 	if len(og_url) < 1:
 		raise Ex.MediaNotAvailable
 
-	(show_title, episode_title) = html.xpath('//title/text()')[0].split(' | ')[0].split(' : ')
+	(show_title, episode_title) = RE_SHOW_TITLE.search(html.xpath('//title/text()')[0]).groups()
 	summary = html.xpath('//meta[@property="og:title"]/@content')[0]
 
 	try:
@@ -100,10 +101,9 @@ def PlayVideo(f4m_url=None, **kwargs):
 def GetVideoId(url):
 
 	html = HTML.ElementFromURL(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
+	video_id = html.xpath('//*[@data-video-id]/@data-video-id')
 
-	# Loop over attribute values, because we can't grab the right one directly because of a missing namespace declaration(?)
-	for value in html.xpath('//div[@id="vp2k_container"]/@*'):
-		if value.startswith('VDKA'):
-			return value.split('VDKA')[-1]
+	if len(video_id) < 1:
+		raise Ex.MediaNotAvailable
 
-	return None
+	return video_id[0].split('VDKA')[-1].strip("'")
