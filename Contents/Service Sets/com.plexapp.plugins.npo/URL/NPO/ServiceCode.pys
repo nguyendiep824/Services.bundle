@@ -1,6 +1,5 @@
-TOKEN_URL = 'http://ida.omroep.nl/npoplayer/i.js'
-STREAM_URL = 'http://ida.omroep.nl/odi/?prid=%s&puboptions=h264_std&adaptive=yes&token=%s'
-RE_TOKEN = Regex('token = "([^"]+)"')
+TOKEN_URL = 'http://ida.omroep.nl/app.php/auth'
+STREAM_URL = 'http://ida.omroep.nl/app.php/%s?adaptive=yes&token=%s'
 RE_VARIANTS = Regex('RESOLUTION=\d+x(\d+).*\n(.+\.m3u8)')
 
 HTTP_HEADERS = {
@@ -110,24 +109,24 @@ def PlayVideo(url, **kwargs):
 	if not player_id:
 		raise Ex.MediaNotAvailable
 
-	token_data = HTTP.Request(TOKEN_URL, headers=HTTP_HEADERS, cacheTime=0).content
-	token = RE_TOKEN.search(token_data)
+	json_obj = JSON.ObjectFromURL(TOKEN_URL, headers=HTTP_HEADERS, cacheTime=0)
 
-	if not token:
-		raise Ex.MediaNotAvailable
-	else:
-		token = SwapToken(token.group(1))
-
-	json = JSON.ObjectFromURL(STREAM_URL % (player_id, token), cacheTime=0)
-	stream = '%s?type=json' % json['streams'][0].split('?')[0]
-
-	try:
-		json = JSON.ObjectFromURL(stream, cacheTime=0)
-		video_url = json['url'].split('?')[0]
-	except:
+	if not 'token' in json_obj:
 		raise Ex.MediaNotAvailable
 
-	return IndirectResponse(VideoClipObject, key=video_url)
+	json_obj = JSON.ObjectFromURL(STREAM_URL % (player_id, json_obj['token']), cacheTime=0)
+
+	for version in json_obj['items'][0]:
+
+		if version['label'] != 'Hoog':
+			continue
+
+		url = version['url'].split('?')[0]
+		json_obj = JSON.ObjectFromURL(url)
+
+		return IndirectResponse(VideoClipObject, key=json_obj['url'].split('?')[0])
+
+	raise Ex.MediaNotAvailable
 
 ####################################################################################################
 def GetPlayerId(url):
@@ -136,25 +135,3 @@ def GetPlayerId(url):
 		return url.split('/')[-1]
 
 	return None
-
-####################################################################################################
-def SwapToken(token):
-
-	token_l = list(token)
-	first = second = None
-
-	for i in range(5, len(token_l) - 4):
-
-		if token_l[i].isdigit():
-			if first is None:
-				first = i
-			elif second is None:
-				second = i
-
-	if first is None or second is None:
-		first = 12
-		second = 13
-
-	token_l[first], token_l[second] = token_l[second], token_l[first]
-
-	return ''.join(token_l)
