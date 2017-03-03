@@ -34,7 +34,7 @@ def MetadataObjectForURL(url):
 
 		if clip['title'] == clip_title:
 			thumb = clip['screen'].replace('http://trailers.apple.com/', 'http://movietrailers.apple.com/')
-			duration = Datetime.MillisecondsFromString(clip['runtime'])
+			duration = Datetime.MillisecondsFromString(clip['runtime']) if clip['runtime'] else None
 			break
 
 	return VideoClipObject(
