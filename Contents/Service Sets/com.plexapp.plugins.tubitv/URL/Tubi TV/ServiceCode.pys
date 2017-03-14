@@ -4,7 +4,7 @@ RE_JSON = Regex('window\.__data=(\{.+?\});')
 ####################################################################################################
 def NormalizeURL(url):
 
-	return url.split('#')[0]
+	return url.split('#')[0].split('?')[0]
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -12,10 +12,10 @@ def MetadataObjectForURL(url):
 	json_obj = GetJSON(url)
 
 	return VideoClipObject(
-		title = json_obj['n'],
-		summary = json_obj['d'],
-		duration = json_obj['s'] * 1000,
-		thumb = Resource.ContentsOfURLWithFallback(url=json_obj['pp'])
+		title = json_obj['title'],
+		summary = json_obj['description'],
+		duration = json_obj['duration'] * 1000,
+		thumb = Resource.ContentsOfURLWithFallback(url='http://%s' % (json_obj['posterarts'][0].split('//')[-1]))
 	)
 
 ####################################################################################################
@@ -35,7 +35,7 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, **kwargs):
 
 	json_obj = GetJSON(url)
-	playlist_url = json_obj['mh']
+	playlist_url = 'http://%s' % (json_obj['url'].split('//')[-1])
 	playlist = HTTP.Request(playlist_url).content
 
 	new_playlist = '#EXTM3U'
@@ -74,6 +74,8 @@ def PlayVideo(url, **kwargs):
 ####################################################################################################
 def GetJSON(url):
 
+	video_id = url.split('/')[4]
+
 	try:
 		data = HTTP.Request(url, cacheTime=CACHE_1HOUR).content
 	except:
@@ -84,4 +86,4 @@ def GetJSON(url):
 	if not json:
 		raise Ex.MediaNotAvailable
 
-	return JSON.ObjectFromString(json.group(1))['video']['data']
+	return JSON.ObjectFromString(json.group(1))['video']['byId'][video_id]
