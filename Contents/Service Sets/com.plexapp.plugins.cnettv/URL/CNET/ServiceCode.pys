@@ -1,5 +1,3 @@
-NAMESPACES = {'smil': 'http://www.w3.org/2005/SMIL21/Language'}
-
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -42,12 +40,9 @@ def MediaObjectsForURL(url):
 	return [
 		MediaObject(
 			parts = [
-				PartObject(key=Callback(PlayVideo, url=url, resolution=resolution))
+				PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url, resolution=resolution)))
 			],
-			container = Container.MP4,
-			video_codec = VideoCodec.H264,
 			video_resolution = resolution,
-			audio_codec = AudioCodec.AAC,
 			audio_channels = 2,
 			optimized_for_streaming = True
 		) for resolution in ['1080', '720', '360']
@@ -58,29 +53,21 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, resolution='1080', **kwargs):
 
 	json_obj = GetJSON(url)
+	m3u8_master_url = json_obj['m3u8']
 
-	if not 'files' in json_obj or not 'hds' in json_obj['files'] or json_obj['files']['hds'] is None:
-		raise Ex.MediaNotAvailable
+	if m3u8_master_url.startswith('/'):
+		m3u8_master_url = 'https://www.cnet.com' + m3u8_master_url
 
-	video_id = json_obj['files']['hds']
-	smil_url = 'https://link.theplatform.com/s/kYEXFC/%s?format=SMIL&mbr=true&switch=secure' % (video_id)
+	m3u8_master_url = m3u8_master_url + '?device=ott&change-to-host=cnetmedia-a.akamaihd.net'
 
-	xml = XML.ElementFromURL(smil_url)
+	m3u8_master = HTTP.Request(m3u8_master_url).content
+	resolution_regex = 'x%s.+?(https?:\/\/.+?\.m3u8)' % (resolution)
+	video_url = Regex(resolution_regex, Regex.DOTALL).search(m3u8_master)
 
-	video_1080 = xml.xpath('//smil:video[@height="1080"]', namespaces=NAMESPACES)
-	video_720 = xml.xpath('//smil:video[@height="720"]', namespaces=NAMESPACES)
-	video_360 = xml.xpath('//smil:video[@height="360"]', namespaces=NAMESPACES)
+	if video_url:
+		return IndirectResponse(VideoClipObject, key=video_url.group(1))
 
-	if resolution == '1080' and len(video_1080) > 0:
-		video_url = video_1080[0].get('src')
-	elif resolution in ['1080', '720'] and len(video_720) > 0:
-		video_url = video_720[0].get('src')
-	elif resolution in ['1080', '720', '360'] and len(video_360) > 0:
-		video_url = video_360[0].get('src')
-	else:
-		raise Ex.MediaNotAvailable
-
-	return IndirectResponse(VideoClipObject, key=video_url)
+	raise Ex.MediaNotAvailable
 
 ####################################################################################################
 def GetJSON(url):
