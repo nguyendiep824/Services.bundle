@@ -1,6 +1,6 @@
-RE_VIDEO_URL = Regex('<source src="(?P<video_url>[^"]+)" type="video/mp4">')
 RE_VIDEO_ID = Regex('redtube\.com/(?P<video_id>\d+)')
-API_URL = 'http://api.redtube.com/?data=redtube.Videos.getVideoById&video_id=%s&output=json'
+RE_JSON = Regex('sources:\s*(\{.+\}),')
+API_URL = 'https://api.redtube.com/?data=redtube.Videos.getVideoById&video_id=%s&output=json'
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -26,7 +26,7 @@ def MetadataObjectForURL(url):
 		data = data['video']
 
 	title = data['title']
-	thumb = 'http:'+data['thumb'].replace('m.jpg', 'b.jpg')
+	thumb = data['default_thumb']
 
 	try: duration = TimeToMs(data['duration'])
 	except: duration = None
@@ -63,34 +63,49 @@ def MediaObjectsForURL(url):
 
 	return [
 		MediaObject(
+			container = Container.MP4,
 			video_codec = VideoCodec.H264,
+			video_resolution = video_resolution,
 			audio_codec = AudioCodec.AAC,
-			container = 'mp4',
-			parts = [PartObject(key=Callback(PlayVideo, url=url))]
-		)
+			audio_channels = 2,
+			optimized_for_streaming = True,
+			parts = [
+				PartObject(
+					key = Callback(PlayVideo, url=url, res=video_resolution)
+				)
+			]
+		) for video_resolution in ['720', '480']
 	]
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, **kwargs):
+def PlayVideo(url, res='720', **kwargs):
 
 	try:
-		page = HTTP.Request(url).content
+		data = HTTP.Request(url).content
 	except:
 		raise Ex.MediaNotAvailable
 
-	video_url = RE_VIDEO_URL.search(page)
+	json = RE_JSON.search(data)
+	json_obj = JSON.ObjectFromString(json.group(1))
 
-	if not video_url:
-		raise Ex.MediaNotAvailable
+	if res == '720' and '720' in json_obj:
+		video_url = json_obj['720']
+	elif '480' in json_obj:
+		video_url = json_obj['480']
+	else:
+		video_url = json_obj[json_obj.keys()[0]]
 
-	return IndirectResponse(VideoClipObject, key='http://%s' % (video_url.group('video_url').split('//')[-1]))
+	video_url = 'https:'+video_url
+	#Log(video_url)
+
+	return IndirectResponse(VideoClipObject, key=video_url)
 
 ####################################################################################################
 def TestURLs():
 
 	test_urls = []
-	data = JSON.ObjectFromURL('http://api.redtube.com/?data=redtube.Videos.searchVideos&output=json')
+	data = JSON.ObjectFromURL('https://api.redtube.com/?data=redtube.Videos.searchVideos&output=json')
 
 	for video in data['videos']:
 		url = video['video']['url']
