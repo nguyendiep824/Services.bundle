@@ -1,5 +1,4 @@
 USER_AGENT = 'AppleCoreMedia/1.0.0.11A501 (iPad; U; CPU OS 7_0_2 like Mac OS X; en_us)'
-RE_CHANNELS = Regex('"schedule" *: *(\[.+\]) *,')
 RE_ID = Regex('video\/([0-9]+)\/?')
 
 ####################################################################################################
@@ -71,24 +70,21 @@ def GetVideoData(url):
     
     data = {}
     if '/kanaler' in url:
-        content = HTTP.Request(url, cacheTime=0).content
-        channels = RE_CHANNELS.search(content).groups()[0]
-        json = JSON.ObjectFromString(channels)
+        channel = 'ch-' + url.split('/')[-1]
+        json = JSON.ObjectFromURL('http://api.svt.se/videoplayer-api/video/' + channel)
         
-        for channel in json:
-            if channel['title'] in url:
-                break
+        element = HTML.ElementFromURL(url)
 
-        data['title'] = channel['schedule'][0]['title']
-        data['summary'] = channel['schedule'][0]['description'] if 'description' in channel['schedule'][0] else None
-        data['show'] = channel['schedule'][0]['programTitle'] if 'programTitle' in channel['schedule'][0] else channel['name']
-        data['duration'] = channel['schedule'][0]['materialLength'] * 1000 if 'materialLength' in channel['schedule'][0] else None
-        data['index'] = channel['schedule'][0]['episodeNumber'] if 'episodeNumber' in channel['schedule'][0] else None
-        data['season'] = channel['schedule'][0]['season'] if 'season' in channel['schedule'][0] else None
-        data['thumb'] = channel['schedule'][0]['titlePage']['thumbnailXLImax'] if 'titlePage' in channel['schedule'][0] else 'http://www.svtplay.se/public/images/channels/posters/%s.png' % channel['title']
-        data['art'] = channel['schedule'][0]['titlePage']['posterXLImax'] if 'titlePage' in channel['schedule'][0] and 'posterXLImax' in channel['schedule'][0]['titlePage'] else None
+        data['title'] = unicode(element.xpath("//meta[@property='og:title']/@content")[0])
+        data['summary'] = unicode(element.xpath("//meta[@property='og:description']/@content")[0])
+        data['show'] = None
+        data['duration'] = None
+        data['index'] = None
+        data['season'] = None
+        data['thumb'] = 'http://www.svtplay.se/public/images/channels/posters/%s.png' % url.split('/')[-1]
+        data['art'] = None
         data['date'] = Datetime.Now().date()
-        data['videoReferences'] = channel['videoReferences']
+        data['videoReferences'] = json['videoReferences']
 
     elif 'svtplay' in url:
         try:
