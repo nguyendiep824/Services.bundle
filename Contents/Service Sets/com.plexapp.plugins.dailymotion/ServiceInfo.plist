@@ -8,12 +8,12 @@
 		<dict>
 			<key>TestURLs</key>
 			<array>
-				<string>http://www.dailymotion.com/video/x6ymb_hamster-dance_animals</string>
-				<string>http://www.dailymotion.com/video/x27y2r_wow-dance-2_videogames</string>
+				<string>https://www.dailymotion.com/video/x6ymb_hamster-dance_animals</string>
+				<string>https://www.dailymotion.com/video/x27y2r_wow-dance-2_videogames</string>
 			</array>
 			<key>URLPatterns</key>
 			<array>
-				<string>^(?!.*/json/)http://(www\.)?dailymotion.com/((embed/)?video/|swf/(video/)?|.+#video(Id)?=).+</string>
+				<string>^(?!.*/json/)https?://(www\.)?dailymotion.com/((embed/)?video/|swf/(video/)?|.+#video(Id)?=).+</string>
 			</array>
 		</dict>
 	</dict>
