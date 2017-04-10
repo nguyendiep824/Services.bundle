@@ -132,21 +132,3 @@ def GetThumb(url):
 			width = images[key]['width']
 
 	return thumb
-
-####################################################################################################
-def TestURLs():
-
-	test_urls = []
-	data = HTML.ElementFromURL('%s/shows/' % (BASE_URL))
-
-	for url in data.xpath('//a[contains(@href, "/shows/")]/@href'):
-
-		if url.endswith('/shows/'):
-			continue
-
-		test_urls.append(BASE_URL + url)
-
-		if len(test_urls) > 2:
-			break
-
-	return test_urls
