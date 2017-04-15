@@ -14,6 +14,16 @@ def MetadataObjectForURL(url):
 
 	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
 
+	# Check for geoblocks or errors
+	if not 'items' in json_obj:
+
+		if 'errorSlateURL' in json_obj and 'video_loc_' in json_obj['errorSlateURL']:
+			Log('Media Geoblocked')
+			raise Ex.MediaGeoblocked
+		else:
+			Log('Media Not Available')
+			raise Ex.MediaNotAvailable
+
 	duration = 0
 
 	for item in json_obj['items']:
