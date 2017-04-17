@@ -14,9 +14,12 @@ def MetadataObjectForURL(url):
 		raise Ex.MediaNotAvailable
 
 	youtube_id = html.xpath('//div[contains(@id, "youtube_")]/div[@data-id]/@data-id')
+	vimeo_embed = html.xpath('//iframe[contains(@src, "vimeo.com")]/@src')
 
 	if len(youtube_id) > 0:
 		return URLService.MetadataObjectForURL('https://www.youtube.com/watch?v=%s' % (youtube_id[0]))
+	elif len(vimeo_embed) > 0:
+		return URLService.MetadataObjectForURL(vimeo_embed[0])
 
 	title = html.xpath('//meta[@property="og:title"]/@content')[0]
 	summary = html.xpath('//meta[@property="og:description"]/@content')[0]
