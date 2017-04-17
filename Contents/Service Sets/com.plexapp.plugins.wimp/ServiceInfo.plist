@@ -8,7 +8,7 @@
 		<dict>
 			<key>URLPatterns</key>
 			<array>
-				<string>^(?!.*/random/?$)http://www.wimp.com/.+</string>
+				<string>^(?!.*/(archives|random)/?$)http://www.wimp.com/.+</string>
 			</array>
 			<key>TestURLs</key>
 			<array>
