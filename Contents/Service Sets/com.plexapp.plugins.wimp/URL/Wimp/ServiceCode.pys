@@ -1,8 +1,4 @@
-HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.143 Safari/537.36'}
-HTTP_HEADERS_IPAD = {'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 6_0_1 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A523 Safari/8536.25'}
-
-RE_VIDEO_ID = Regex("videoId: '(.{11})',")
-RE_FILE_ID = Regex('"file"(?:\:|,) *"([^\"]+)"')
+HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'}
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -13,32 +9,14 @@ def NormalizeURL(url):
 def MetadataObjectForURL(url):
 
 	try:
-		data = HTTP.Request(url, headers=HTTP_HEADERS).content
+		html = HTML.ElementFromURL(url, headers=HTTP_HEADERS)
 	except:
 		raise Ex.MediaNotAvailable
 
-	html = HTML.ElementFromString(data)
+	youtube_id = html.xpath('//div[contains(@id, "youtube_")]/div[@data-id]/@data-id')
 
-	yt_iframe = html.xpath('//iframe[contains(@src, "youtube.com/embed")]/@src')
-
-	if len(yt_iframe) > 0:
-		return URLService.MetadataObjectForURL(yt_iframe[0])
-
-	elif RE_VIDEO_ID.search(data):
-		url = 'https://www.youtube.com/watch?v=%s' % RE_VIDEO_ID.search(data).group(1)
-		return URLService.MetadataObjectForURL(url)
-
-	elif RE_FILE_ID.search(data):
-		url = RE_FILE_ID.search(data).group(1)
-
-		# If this is a YouTube video we use the YouTube URL Service to handle the request
-		if 'youtube.com/' in url:
-			return URLService.MetadataObjectForURL(url)
-		# NOTE: We check for '.flv' here (because we're not in the iPad version of the website), but we use the mp4 file in MediaObjectsForURL and PlayVideo!
-		elif '.flv' not in url:
-			raise Ex.MediaNotAvailable
-	else:
-		raise Ex.MediaNotAvailable
+	if len(youtube_id) > 0:
+		return URLService.MetadataObjectForURL('https://www.youtube.com/watch?v=%s' % (youtube_id[0]))
 
 	title = html.xpath('//meta[@property="og:title"]/@content')[0]
 	summary = html.xpath('//meta[@property="og:description"]/@content')[0]
@@ -71,22 +49,14 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayVideo(url, **kwargs):
 
-	url = url.replace('http://www.', 'http://m.')
-
 	try:
-		data = HTTP.Request(url, headers=HTTP_HEADERS_IPAD).content
+		html = HTML.ElementFromURL(url, headers=HTTP_HEADERS)
 	except:
 		raise Ex.MediaNotAvailable
 
-	html = HTML.ElementFromString(data)
+	video_url = html.xpath('//div[contains(@data-src, ".mp4")]/@data-src')
 
-	video = html.xpath('//video/@src|//video/source/@src')
+	if len(video_url) > 0:
+		return IndirectResponse(VideoClipObject, key=video_url[0])
 
-	if len(video) > 0:
-		video_url = video[0]
-	elif RE_FILE_ID.search(data):
-		video_url = RE_FILE_ID.search(data).group(1)
-	else:
-		raise Ex.MediaNotAvailable
-
-	return IndirectResponse(VideoClipObject, key=video_url)
+	raise Ex.MediaNotAvailable
