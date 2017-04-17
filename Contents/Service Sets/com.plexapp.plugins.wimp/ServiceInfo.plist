@@ -6,15 +6,13 @@
 	<dict>
 		<key>Wimp</key>
 		<dict>
-			<key>TestURLs</key>
-			<array>
-				<string>http://www.wimp.com/hedgehogbath/</string>
-				<string>http://www.dump.com/thinksfunny/</string>
-			</array>
 			<key>URLPatterns</key>
 			<array>
 				<string>^(?!.*/random/?$)http://www.wimp.com/.+</string>
-				<string>^(?!.*/random/?$)http://www.dump.com/.+</string>
+			</array>
+			<key>TestURLs</key>
+			<array>
+				<string>http://www.wimp.com/heres-a-guy-giving-his-hedgehog-a-bath/</string>
 			</array>
 		</dict>
 	</dict>
