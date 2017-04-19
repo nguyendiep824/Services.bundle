@@ -77,6 +77,8 @@ def MediaObjectsForURL(url):
         available_hls_streams = []
         
         for media_url in media_urls:
+            if not media_url.startswith('http:'):
+                media_url = 'http:' + media_url
             # Get HLS Streams
             try:
                 hls_data = XML.ElementFromURL(media_url.replace('{device}', 'iPad'), cacheTime=CACHE_1HOUR)
