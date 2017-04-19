@@ -10,7 +10,9 @@ def MetadataObjectForURL(url):
 
   data = HTML.ElementFromURL(url)
 
-  if not data:
+  try:
+    data = HTML.ElementFromURL(url)
+  except:
     raise Ex.MediaNotAvailable
 
   title = data.xpath('//meta[@itemprop="name"]/@content')[0]
@@ -57,7 +59,11 @@ def MediaObjectsForURL(url):
 @indirect
 def PlayVideo(url, quality, **kwargs):
 
-  data = HTML.ElementFromURL(url)
+  try:
+    data = HTML.ElementFromURL(url)
+  except:
+    raise Ex.MediaNotAvailable
+
   video_url = None
 
   video_url = data.xpath('//link[@itemprop="contentURL"]/@href')
