@@ -9,7 +9,7 @@ def NormalizeURL(url):
 def MetadataObjectForURL(url):
 
 	video_id = url.split('/video/')[-1].split('/')[0]
-	json_obj = JSON.ObjectFromURL(XSPF_URL % (video_id))['items'][0]
+	json_obj = JSON.ObjectFromURL(XSPF_URL % (video_id), encoding='iso-8859-1')['items'][0]
 
 	title = json_obj['title']
 	summary = json_obj['description']
@@ -44,7 +44,7 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, res=1080, **kwargs):
 
 	video_id = url.split('/video/')[-1].split('/')[0]
-	json_obj = JSON.ObjectFromURL(XSPF_URL % (video_id))['items'][0]
+	json_obj = JSON.ObjectFromURL(XSPF_URL % (video_id), encoding='iso-8859-1')['items'][0]
 	available_versions = []
 
 	for version in json_obj['locations']['progressive']:
