@@ -70,6 +70,19 @@ def PlayVideo(url, **kwargs):
 	}
 
 	json_obj = JSON.ObjectFromURL(ENTITLEMENT_URL, values=post_values, headers=HTTP_HEADERS)
+
+	if not 'uplynkData' in json_obj:
+
+		if 'errors' in json_obj and 'errors' in json_obj['errors']:
+			Log(" *** The following error(s) occured:")
+
+			for error in json_obj['errors']['errors']:
+				Log(" *** %s" % (error['message']))
+
+			Log(" *** If any of the above errors is about geoblocking, DO NOT report this as a bug, we can't fix this for you!")
+
+		raise Ex.MediaNotAvailable
+
 	session_key = json_obj['uplynkData']['sessionKey']
 
 	video_url = '%s?%s' % (m3u8_base_url, session_key)
