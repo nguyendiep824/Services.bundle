@@ -1,3 +1,5 @@
+import ssl, urllib2
+
 HTTP_HEADERS = {
 	'User-Agent': 'ABC/5.0.3(iPad4,4; cpu iPhone OS 9_3_4 like mac os x; en-nl) CFNetwork/758.5.3 Darwin/15.6.0',
 	'appversion': '5.0.0'
@@ -15,7 +17,7 @@ def NormalizeURL(url):
 def MetadataObjectForURL(url):
 
 	video_id = GetVideoId(url)
-	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
+	json_obj = JSON.ObjectFromString(GetData(METADATA_URL % (video_id)))
 
 	if not 'video' in json_obj:
 		raise Ex.MediaNotAvailable
@@ -52,7 +54,7 @@ def MediaObjectsForURL(url):
 def PlayVideo(url, **kwargs):
 
 	video_id = GetVideoId(url)
-	json_obj = JSON.ObjectFromURL(METADATA_URL % (video_id), headers=HTTP_HEADERS)
+	json_obj = JSON.ObjectFromString(GetData(METADATA_URL % (video_id)))
 
 	if not 'video' in json_obj:
 		raise Ex.MediaNotAvailable
@@ -107,3 +109,18 @@ def GetVideoId(url):
 			raise Ex.MediaNotAvailable
 		else:
 			return video_id[0]
+
+####################################################################################################
+def GetData(url):
+
+	# Quick and dirty workaround to get this to work on Windows
+	# Do not validate ssl certificate
+	# http://stackoverflow.com/questions/27835619/ssl-certificate-verify-failed-error
+	if 'Windows' in Platform.OS:
+		req = urllib2.Request(url, headers=HTTP_HEADERS)
+		ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+		data = urllib2.urlopen(req, context=ssl_context).read()
+	else:
+		data = HTTP.Request(url, headers=HTTP_HEADERS).content
+
+	return data
