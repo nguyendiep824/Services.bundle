@@ -1,3 +1,9 @@
+import ssl, urllib2
+
+HTTP_HEADERS = {
+	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36'
+}
+
 RE_THUMB = Regex("image: '([^']+)'")
 
 ####################################################################################################
@@ -13,14 +19,7 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		data = HTTP.Request(url, cacheTime=CACHE_1DAY).content
-	except:
-		try:
-			data = HTTP.Request('https://plex.sa.nderspi.es/twit/%s' % (url.split('twit.tv/', 1)[-1]), cacheTime=CACHE_1DAY).content
-		except:
-			raise Ex.MediaNotAvailable
-
+	data = GetData(url)
 	html = HTML.ElementFromString(data)
 
 	show = html.xpath('//nav[contains(@class, "breadcrumbs")]/a[last()]/text()')[0].strip()
@@ -78,13 +77,8 @@ def PlayMedia(url, fmt, **kwargs):
 
 	url = URLService.NormalizeURL(url)
 
-	try:
-		html = HTML.ElementFromURL(url, cacheTime=CACHE_1DAY)
-	except:
-		try:
-			html = HTML.ElementFromURL('https://plex.sa.nderspi.es/twit/%s' % (url.split('twit.tv/', 1)[-1]), cacheTime=CACHE_1DAY)
-		except:
-			raise Ex.MediaNotAvailable
+	data = GetData(url)
+	html = HTML.ElementFromString(data)
 
 	fmt = fmt.strip('p')
 
@@ -117,3 +111,13 @@ def PlayMedia(url, fmt, **kwargs):
 		url = url.split(' ')[0]
 
 	return IndirectResponse(VideoClipObject, key=url)
+
+####################################################################################################
+def GetData(url):
+
+	Log(' *** Fetching data for %s' % (url))
+	req = urllib2.Request(url, headers=HTTP_HEADERS)
+	ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+	data = urllib2.urlopen(req, context=ssl_context).read()
+
+	return data
