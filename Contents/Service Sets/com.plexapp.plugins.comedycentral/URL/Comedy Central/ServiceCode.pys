@@ -2,7 +2,7 @@ META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&config
 MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?device=iPad&format=json'
 URI = 'mgid:arc:%s:comedycentral.com:%s'
 
-RE_ID = Regex('ccnetworkapp:.{2,4}(?P<type>episode|video).{1,2}(?P<uuid>[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
+RE_ID = Regex('ccnetworkapp\/(?P<type>episode|video)\/(?P<uuid>[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
 
 ####################################################################################################
 def NormalizeURL(url):
