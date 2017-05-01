@@ -1,7 +1,7 @@
 HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.115 Safari/537.36'}
 
 RE_PID = Regex('iplayer/episode/([^/$]{8})')
-RE_VPID = Regex('"vpid" *: *"(.+?)"')
+RE_VPID = Regex('true,"id" *: *"(.+?)"')
 
 ####################################################################################################
 def NormalizeURL(url):
