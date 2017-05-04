@@ -127,13 +127,6 @@ def GetURLs(id):
     headers = {}
     headers['User-Agent'] = USER_AGENT
     
-    cookies = None
-    if Prefs['premium'] and Prefs['email'] and Prefs['password']:
-        cookies = Login()
-        
-    if cookies:
-        headers['Cookie'] = cookies
-    
     is_live = IsLive(id)
     
     if not is_live:
