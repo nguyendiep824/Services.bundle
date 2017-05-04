@@ -96,7 +96,8 @@ def PlayVideo(url, res='720', **kwargs):
 	else:
 		video_url = json_obj[json_obj.keys()[0]]
 
-	video_url = 'https:'+video_url
+	if not video_url.startswith("https:"):
+		video_url = 'https:'+video_url
 	#Log(video_url)
 
 	return IndirectResponse(VideoClipObject, key=video_url)
