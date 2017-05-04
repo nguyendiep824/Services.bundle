@@ -1,8 +1,8 @@
 import ssl, urllib2
 
 HTTP_HEADERS = {
-	'User-Agent': 'ABC/5.0.3(iPad4,4; cpu iPhone OS 9_3_4 like mac os x; en-nl) CFNetwork/758.5.3 Darwin/15.6.0',
-	'appversion': '5.0.0'
+	'User-Agent': 'ABC/5.0.14(iPad4,4; cpu iOS 10_2_1 like mac os x; en_nl) CFNetwork/758.5.3 Darwin/15.6.0',
+	'appversion': '5.0.14'
 }
 
 METADATA_URL = 'https://api.pluto.watchabc.go.com/api/ws/pluto/v1/module/videoplayer/1350290?brand=001&device=002&video=%s'
