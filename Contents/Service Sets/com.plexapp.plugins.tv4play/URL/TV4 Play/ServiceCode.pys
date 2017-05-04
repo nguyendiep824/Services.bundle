@@ -4,7 +4,7 @@ RE_VIDEO_ID     = Regex('(?<=video_id=)[0-9]+')
 RE_SHOW_EPISODE = Regex('(.*) *(Del) *([0-9]+) *(.*)', Regex.IGNORECASE)
 
 API_METADATA_URL  = 'http://webapi.tv4play.se/play/video_assets/%s'
-API_VIDEO_URL = 'https://prima.tv4play.se/%s'
+API_VIDEO_URL = 'http://prima.tv4play.se/%s'
 
 PROXY_URL     = 'http://papi.tv4play.se/playback/hls/hlsproxy.m3u8?hlsurl=%s&subsurl=%s'
 
@@ -126,13 +126,6 @@ def GetURLs(id):
         
     headers = {}
     headers['User-Agent'] = USER_AGENT
-    
-    cookies = None
-    if Prefs['premium'] and Prefs['email'] and Prefs['password']:
-        cookies = Login()
-        
-    if cookies:
-        headers['Cookie'] = cookies
     
     is_live = IsLive(id)
     
