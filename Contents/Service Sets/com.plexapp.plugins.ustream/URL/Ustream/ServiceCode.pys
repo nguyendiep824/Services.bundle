@@ -5,8 +5,6 @@ USTREAM_IPHONE_URL = 'http://iphone-streaming.ustream.tv/uhls/%s/streams/live/ip
 USTREAM_REC_URL = 'http://www.ustream.tv/recorded/%s'
 
 RE_RECORDED_ID = Regex('/recorded/(\d+)')
-RE_EMBED_ID = Regex('/embed/(\d+)')
-RE_PROGRESSED = Regex('#PROGRESSED (\d+)%')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -57,12 +55,9 @@ def MetadataObjectForURL(url):
 		# For live channels, look for a video ID in the HTML...
 		try:
 			html = HTML.ElementFromURL(url)
-			video_id = html.xpath('//a[@data-content-id]/@data-content-id')[0]
+			video_id = html.xpath('//meta[@name="ustream:channel_id"]/@content')[0]
 		except:
-			try:
-				video_id = RE_EMBED_ID.search(url).group(1)
-			except:
-				raise Ex.MediaNotAvailable
+			raise Ex.MediaNotAvailable
 
 		try:
 			json_obj = JSON.ObjectFromURL(USTREAM_CH_JSON % (video_id))['channel']
@@ -138,6 +133,7 @@ def PlayRecorded(url, **kwargs):
 		raise Ex.MediaNotAvailable
 
 ####################################################################################################
+@indirect
 def PlayLive(url, **kwargs):
 
 	try:
@@ -146,42 +142,9 @@ def PlayLive(url, **kwargs):
 		raise Ex.MediaNotAvailable
 
 	try:
-		video_id = html.xpath('//a[@data-content-id]/@data-content-id')[0]
+		html = HTML.ElementFromURL(url)
+		video_id = html.xpath('//meta[@name="ustream:channel_id"]/@content')[0]
 	except:
-		try:
-			video_id = RE_EMBED_ID.search(url).group(1)
-		except:
-			raise Ex.MediaNotAvailable
+		raise Ex.MediaNotAvailable
 
-	if StreamIsReady(video_id):
-		return Redirect(USTREAM_IPHONE_URL % video_id)
-	else:
-		raise Ex.LiveMediaNotStarted
-
-####################################################################################################
-def StreamIsReady(video_id, i=0, progressed=0):
-
-	url = USTREAM_IPHONE_URL % video_id
-
-	Log(' --> url: %s' % url)
-	Log(' -->   i: %d' % i)
-
-	if i < 20:
-		try:
-			playlist = HTTP.Request(url, cacheTime=0, sleep=1.0).content
-		except:
-			return False
-
-		if '#PROGRESSED' in playlist:
-			progress = int(RE_PROGRESSED.search(playlist).group(1))
-			Log(' --> progress: %d' % progress)
-
-			if progress > progressed:
-				return StreamIsReady(video_id=video_id, i=i, progressed=progress)
-			else:
-				return StreamIsReady(video_id=video_id, i=i+1, progressed=progress)
-		else:
-			i = 99 # Fix Laika HLS sillyness
-			return True
-	else:
-		return False
+	return IndirectResponse(VideoClipObject, key=USTREAM_IPHONE_URL % (video_id))
