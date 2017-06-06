@@ -3,6 +3,7 @@ MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?devi
 URI = 'mgid:arc:%s:comedycentral.com:%s'
 
 RE_ID = Regex('ccnetworkapp\/(?P<type>episode|video)\/(?P<uuid>[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
+RE_MANIFEST = Regex('var triforceManifestFeed = (.+?);', Regex.DOTALL)
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -126,6 +127,13 @@ def GetURI(url):
 
 	if not re_result:
 		Log('RE_ID regex failed')
-		raise Ex.MediaNotAvailable
+		try: 
+			json = JSON.ObjectFromString(RE_MANIFEST.search(page).group(1))
+			uuid = json['manifest']['reporting']['itemId']
+			type = json['manifest']['pageClass'].split('-')[1].split('playerpage')[0]
+			uri = URI % (type, uuid)
+		except: raise Ex.MediaNotAvailable
+	else:
+		uri = URI % (re_result.group('type'), re_result.group('uuid'))
 
-	return URI % (re_result.group('type'), re_result.group('uuid'))
+	return uri
