@@ -1,33 +1,16 @@
 from hashlib import sha1
 import binascii, hmac
 
-RE_MEDIA_URL = Regex("var media_url = '(.+?)';", Regex.DOTALL)
+RE_MEDIA_URL = Regex('data-media-url="([^"]+)')
 RE_BASE = Regex('meta base="(rtmp.+)"')
 
 SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
 SMIL_DETAILS = '?assetTypes=medium_video_ak&formats=m3u,mpeg4&format=SMIL'
 
-AudioStreamObject.language_code = Locale.Language.English
 ####################################################################################################
 def NormalizeURL(url):
 
   return url.split('?')[0]
-
-####################################################################################################
-def TestURLs():
-
-  test_urls = []
-  data = HTML.ElementFromURL('http://www.mylifetime.com/video')
-
-  for url in data.xpath('//ul[contains(@class,"full-episode-ul")]/li//a/@href'):
-    if not url.startswith('http:'):
-      url = 'http://www.mylifetime.com' + url
-    test_urls.append(url)
-
-    if len(test_urls) > 2:
-      break
-
-  return test_urls
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -43,6 +26,7 @@ def MetadataObjectForURL(url):
   title = data['title']
 
   if data['AETN$mrssLengthType'] == "Episode":
+
     show = data['AETN$seriesNameGlobal']
     index = int(data['AETN$episode']) if 'AETN$episode' in data else None
 
@@ -72,6 +56,7 @@ def MediaObjectsForURL(url):
   media_objects = []
 
   for bitrate, resolution in [(1918, '540'), (1423, '432'), (1123, '360')]:
+
     media_objects.append(
       MediaObject(
         parts = [
@@ -154,6 +139,7 @@ def GetSMIL(url):
     return SMIL_URL
 
   raise Ex.MediaNotAvailable
+
 ####################################################################################################
 def sign_url(url):
 
