@@ -94,7 +94,13 @@ def GetVideoData(url):
             og_url = page.xpath("//meta[@property='og:url']/@content")[0]
             id = RE_ID.search(og_url).groups()[0]
         
-        json = JSON.ObjectFromURL('http://www.svt.se/play4api/video/' + id)
+        json = JSON.ObjectFromURL('http://www.svtplay.se/api/episode?id=' + id)
+        video_id = json['id']
+
+        if not video_id.endswith('A'):
+            video_id = video_id + 'A'
+
+        video_json = JSON.ObjectFromURL('http://api.svt.se/videoplayer-api/video/' + video_id)
     
         data['title'] = json['title']
         data['summary'] = json['description'] if 'description' in json else None
@@ -105,7 +111,7 @@ def GetVideoData(url):
         data['thumb'] = json['thumbnailXLImax'] if 'thumbnailXLImax' in json else None
         data['art'] = json['posterXLImax'] if 'posterXLImax' in json else None
         data['date'] = Datetime.FromTimestamp(json['broadcastDate']/1000).date() if 'broadcastDate' in json else None
-        data['videoReferences'] = json['videoReferences']
+        data['videoReferences'] = video_json['videoReferences']
     
     else:
         # Öppet arkiv
