@@ -1,5 +1,5 @@
 RE_VIDEO_ID = Regex('redtube\.com/(?P<video_id>\d+)')
-RE_JSON = Regex('sources:\s*(\{.+\}),')
+RE_JSON = Regex('mediaDefinition:.*(\[.+?\])')
 API_URL = 'https://api.redtube.com/?data=redtube.Videos.getVideoById&video_id=%s&output=json'
 
 ####################################################################################################
@@ -53,9 +53,8 @@ def MetadataObjectForURL(url):
 		tags = tags,
 		originally_available_at = originally_available_at,
 		year = year,
-		genres = ['XXX','Adult','18+'],
-		content_rating_age = 18,
-		source_title = 'RedTube'
+		genres = ['XXX', 'Adult', '18+'],
+		content_rating_age = 18
 	)
 
 ####################################################################################################
@@ -89,33 +88,21 @@ def PlayVideo(url, res='720', **kwargs):
 	json = RE_JSON.search(data)
 	json_obj = JSON.ObjectFromString(json.group(1))
 
-	if res == '720' and '720' in json_obj:
-		video_url = json_obj['720']
-	elif '480' in json_obj:
-		video_url = json_obj['480']
-	else:
-		video_url = json_obj[json_obj.keys()[0]]
+	available_versions = {}
 
-	if not video_url.startswith("https:"):
-		video_url = 'https:'+video_url
-	#Log(video_url)
+	for version in json_obj:
+		available_versions[version['quality']] = version['videoUrl']
+
+	if res == '720' and '720' in available_versions:
+		video_url = available_versions['720']
+	elif '480' in available_versions:
+		video_url = available_versions['480']
+	else:
+		video_url = available_versions[available_versions.keys()[0]]
+
+	video_url = 'https://%s' % (video_url.split('//')[-1])
 
 	return IndirectResponse(VideoClipObject, key=video_url)
-
-####################################################################################################
-def TestURLs():
-
-	test_urls = []
-	data = JSON.ObjectFromURL('https://api.redtube.com/?data=redtube.Videos.searchVideos&output=json')
-
-	for video in data['videos']:
-		url = video['video']['url']
-		test_urls.append(url)
-
-		if len(test_urls) == 3:
-			break
-
-	return test_urls
 
 ####################################################################################################
 def TimeToMs(timecode):
