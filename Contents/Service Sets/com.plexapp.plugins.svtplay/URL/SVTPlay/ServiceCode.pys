@@ -95,10 +95,14 @@ def GetVideoData(url):
             id = RE_ID.search(og_url).groups()[0]
         
         json = JSON.ObjectFromURL('http://www.svtplay.se/api/episode?id=' + id)
-        video_id = json['id']
 
-        if not video_id.endswith('A'):
-            video_id = video_id + 'A'
+        # get video id (can end with 'A', 'W' or 'S')
+        versions = json['versions']
+        for version in versions:
+            video_id = version['id']
+            # select an id that is not subtitled
+            if not video_id.endswith('S'):
+               break
 
         video_json = JSON.ObjectFromURL('http://api.svt.se/videoplayer-api/video/' + video_id)
     
