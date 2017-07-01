@@ -108,8 +108,12 @@ def GetVideoData(url):
         data['duration'] = json['materialLength'] * 1000 if 'materialLength' in json else None
         data['index'] = json['episodeNumber'] if 'episodeNumber' in json else None
         data['season'] = json['season'] if 'season' in json else None
-        data['thumb'] = json['thumbnailXLImax'] if 'thumbnailXLImax' in json else None
-        data['art'] = json['posterXLImax'] if 'posterXLImax' in json else None
+        data['thumb'] = json['thumbnail'] if 'thumbnail' in json else None
+        if data['thumb']:
+            data['thumb'] = data['thumb'].replace('{format}','extralarge')
+        data['art'] = json['poster'] if 'poster' in json else None
+        if data['art']:
+            data['art'] = data['art'].replace('{format}','extralarge')
         data['date'] = Datetime.FromTimestamp(json['broadcastDate']/1000).date() if 'broadcastDate' in json else None
         data['videoReferences'] = video_json['videoReferences']
     
