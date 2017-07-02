@@ -173,7 +173,7 @@ def PlayVideo(url, bitrate=6000, **kwargs):
 			Log('Unknown CDN...')
 			raise Ex.MediaNotAvailable
 
-		return IndirectResponse(VideoClipObject, key=video_url)
+		return IndirectResponse(VideoClipObject, key=video_url.replace('f=dash', '').strip('?&'))
 	else:
 		raise Ex.MediaNotAvailable
 
