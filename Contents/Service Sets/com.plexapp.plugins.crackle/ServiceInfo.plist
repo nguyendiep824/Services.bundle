@@ -8,11 +8,11 @@
 		<dict>
 			<key>TestURLs</key>
 			<array>
-				<string>http://www.crackle.com/watch/video/2493096</string>
+				<string>https://www.crackle.com/watch/video/2493096</string>
 			</array>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http://(www\.)?crackle\.com\/.+\/\d+</string>
+				<string>^https://(www\.)?crackle\.com\/.+\/\d+</string>
 			</array>
 		</dict>
 	</dict>
