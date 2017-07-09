@@ -8,7 +8,7 @@
 		<dict>
 			<key>URLPatterns</key>
 			<array>
-				<string>^http:\/\/www\.npo\.nl\/.+\/[A-Z]{2,6}_\d{6,9}</string>
+				<string>^https:\/\/www\.npo\.nl\/.+\/[A-Z]{2,6}_\d{6,9}</string>
 			</array>
 		</dict>
 	</dict>
