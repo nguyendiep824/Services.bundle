@@ -66,12 +66,7 @@ def PlayVideo(url, **kwargs):
 
 	for flavor in json_obj['flavors']:
 
-		if flavor['format'] == 'applehttp' and '/master/' in flavor['url']:
-
-			if not flavor['url'].startswith('http://'):
-
-				host = url.split('/')[2]
-				flavor['url'] = 'http://%s%s' % (host, flavor['url'])
+		if flavor['format'] == 'applehttp':
 
 			return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(flavor['url']))
 
@@ -88,8 +83,13 @@ def GetJSON(url):
 	if host == 'disneyjunior.disney.com':
 		url = url.replace('/watch/', '/')
 
-	try:
-		json = JSON.ObjectFromURL(url)
-		return json['stack'][0]['data'][0]
-	except:
-		return None
+	json = JSON.ObjectFromURL(url)
+
+	for i in range(len(json['stack'])):
+
+		if json['stack'][i]['type'] != 'video':
+			continue
+
+		return json['stack'][i]['data'][0]
+
+	return None
