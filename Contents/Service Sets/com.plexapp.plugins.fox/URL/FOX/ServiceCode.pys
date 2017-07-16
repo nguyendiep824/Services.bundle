@@ -36,8 +36,27 @@ def MetadataObjectForURL(url):
     )
 
 ###########################################################################################
-@deferred
 def MediaObjectsForURL(url):
+
+    return [
+        MediaObject(
+            protocol = 'hls',
+            container = 'mpegts',
+            video_codec = VideoCodec.H264,
+            audio_codec = AudioCodec.AAC,
+            audio_channels = 2,
+            optimized_for_streaming = True,
+            parts = [
+                PartObject(
+                    key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
+                )
+            ]
+        )
+    ]
+
+##########################################################################################
+@indirect
+def PlayVideo(url, **kwargs):
 
     try:
         html = HTML.ElementFromURL(url)
@@ -74,172 +93,5 @@ def MediaObjectsForURL(url):
             else:
                 raise Ex.MediaNotAvailable
 
-        mo = []
+    return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url[0]))
 
-        if Client.Platform in ['Android', 'iOS', 'Roku', 'Safari', 'tvOS', 'Mystery 4', 'Konvergo']:
-            return [
-                MediaObject(
-                    video_resolution = 720,
-                    audio_channels = 2,
-                    parts = [
-                        PartObject(
-                            key = HTTPLiveStreamURL(url = video_url[0])
-                        )
-                    ],
-                )
-            ]
-        else:
-            return [
-                MediaObject(
-                    video_resolution = video_resolution,
-                    audio_channels = 2,
-                    parts = [
-                        PartObject(
-                            key =
-                                HTTPLiveStreamURL(
-                                    Callback(
-                                        PlayVideo,
-                                        url = video_url[0],
-                                        video_resolution = video_resolution
-                                    )
-                            )
-                        )
-                    ],
-                ) for video_resolution in ['720', '576', '360', '270', '226']
-            ]
-
-    raise Ex.MediaNotAvailable
-
-##########################################################################################
-def PlayVideo(url, video_resolution = '720', **kwargs):
-
-    hls_url = GetSpecificResolutionURL(url, video_resolution)
-
-    # Use "proxy" for clients like PHT(lack of SSL support)
-    return Redirect(
-        Callback(CreatePatchedPlaylist, url = hls_url, cookies = HTTP.CookiesForURL(url))
-    )
-
-##########################################################################################
-def GetSpecificResolutionURL(url, video_resolution):
-
-    streams = GetHLSStreams(url)
-    hls_url = None
-
-    min_diff_found = 10000000 # Some huge number to get it started
-    for stream in streams:
-        if 'resolution' in stream:
-            diff = abs(stream['resolution'] - int(video_resolution))
-
-            if diff < min_diff_found:
-                hls_url = stream['url']
-                min_diff_found = diff
-
-    if not '?' in hls_url:
-        # Samsung requires an arbitrary parameter in the stream url since
-        # '&' is always appended by that client ...
-        hls_url = hls_url + '?null='
-
-    return hls_url
-
-##########################################################################################
-def GetHLSStreams(url):
-
-    headers = {}
-    headers['User-Agent'] = USER_AGENT
-
-    streams = []
-
-    try:
-        playList = HTTP.Request(url, headers = headers, cacheTime = 0).content
-    except:
-        raise Ex.MediaNotAvailable
-
-    # Parse the m3u8 file to get:
-    # - URL
-    # - Resolution
-    # - Bitrate
-    for line in playList.splitlines():
-        if "BANDWIDTH" in line:
-            stream = {}
-            stream['bitrate'] = int(Regex('(?<=BANDWIDTH=)[0-9]+').search(line).group(0))
-
-            if "RESOLUTION" in line:
-                stream['resolution'] = int(Regex('(?<=RESOLUTION=)[0-9]+x[0-9]+').search(line).group(0).split("x")[1])
-
-            if not 'resolution' in stream:
-                stream['resolution'] = int(BitrateToResolution(stream['bitrate']))
-
-        elif "m3u8" in line:
-            path = ''
-
-            if not line.startswith("http"):
-                path = url[ : url.rfind('/') + 1]
-
-            try:
-                stream['url'] = path + line
-                streams.append(stream)
-            except:
-                pass
-
-    sorted_streams = sorted(streams, key = lambda stream: stream['bitrate'], reverse = True)
-
-    return sorted_streams
-
-##########################################################################################
-def BitrateToResolution(bitrate):
-
-    if bitrate >= 1924000:
-        return 720
-    elif bitrate >= 1424000:
-        return 576
-    elif bitrate >= 892000:
-        return 360
-    elif bitrate >= 392000:
-        return 270
-    else:
-        return 226
-
-####################################################################################################
-def CreatePatchedPlaylist(url, cookies):
-
-    headers = {}
-    headers['Cookie'] = cookies
-    headers['User-Agent'] = USER_AGENT
-
-    original_playlist = HTTP.Request(url, headers = headers, cacheTime = 0).content
-    path = path = url[ : url.rfind('/') + 1]
-    new_playlist = ''
-
-    for line in original_playlist.splitlines():
-        if line.startswith('#EXT-X-KEY'):
-            original_key_url = RE_KEY_URI.search(line).groups()[0]
-            new_key_url = Callback(ContentOfURL, url = original_key_url, cookies = cookies)
-            new_playlist = new_playlist + line.replace(original_key_url, new_key_url) + '\n'
-        elif line.startswith('http') or '.ts' in line:
-            original_segment_url = line
-            new_segment_url = Callback(ContentOfURL, url = original_segment_url, cookies = cookies)
-            new_playlist = new_playlist + new_segment_url + '\n'
-        else:
-            new_playlist = new_playlist + line + '\n'
-
-    return new_playlist
-
-####################################################################################################
-def ContentOfURL(url, cookies):
-
-    headers = {}
-    headers['Cookie'] = cookies
-    headers['User-Agent'] = USER_AGENT
-
-    try:
-        content = HTTP.Request(url, headers=headers, cacheTime=0).content
-    except Ex.HTTPError, e:
-        if e.code == 403:
-            raise Ex.MediaNotAuthorized
-        else:
-            raise Ex.MediaNotAvailable
-    except:
-        raise Ex.MediaNotAvailable
-
-    return content
