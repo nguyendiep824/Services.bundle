@@ -3,6 +3,8 @@ USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_2) AppleWebKit/600.3.
 
 SERIES_URL = 'aHR0cDovL2ZlZWQudGhlcGxhdGZvcm0uY29tL2YvZm94LmNvbS9tZXRhZGF0YT9jb3VudD10cnVlJmJ5Q3VzdG9tVmFsdWU9e2Z1bGxFcGlzb2RlfXt0cnVlfSZieUNhdGVnb3JpZXM9U2VyaWVzLyVz'
 
+RE_B = Regex('(__b__=)\d+')
+
 ##########################################################################################
 def MetadataObjectForURL(url):
 
@@ -89,4 +91,6 @@ def PlayVideo(url, **kwargs):
             else:
                 raise Ex.MediaNotAvailable
 
-    return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url[0]))
+    video_url = RE_B.sub(r'\g<1>4000', video_url[0])
+
+    return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url))
