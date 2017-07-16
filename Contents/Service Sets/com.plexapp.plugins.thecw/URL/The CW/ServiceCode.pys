@@ -1,6 +1,8 @@
 DETAILS_URL = 'http://metaframe.digitalsmiths.tv/v2/CWtv/assets/%s/partner/132?format=json'
 BASE_URL = 'http://www.cwtv.com'
 
+RE_BW = Regex('(#.+BANDWIDTH=(\d+),RESOLUTION.+\nhttp.+\.m3u8)')
+
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -81,20 +83,34 @@ def MediaObjectsForURL(url):
 			audio_channels = 2,
 			parts = [
 				PartObject(
-					key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
+					key = HTTPLiveStreamURL(Callback(Playlist, url=url))
 				)
 			]
 		)
 	]
 
 ####################################################################################################
-@indirect
-def PlayVideo(url, **kwargs):
+def Playlist(url, **kwargs):
 
 	data = GetDetails(url)
-	video_url = data['videos']['variantplaylist']['uri']
+	playlist_url = data['videos']['variantplaylist']['uri']
 
-	return IndirectResponse(VideoClipObject, key=video_url)
+	playlist = HTTP.Request(playlist_url).content
+
+	list = RE_BW.findall(playlist)
+	versions = {}
+
+	for (version, bandwidth) in list:
+
+		versions[bandwidth] = version
+
+	new_playlist = '#EXTM3U'
+
+	for key in sorted(versions.keys(), key=int, reverse=True):
+
+		new_playlist += '\n%s' % (versions[key])
+
+	return new_playlist
 
 ####################################################################################################
 def GetDetails(url):
