@@ -2,6 +2,8 @@ META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&config
 MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?device=iPad&format=json'
 URI = 'mgid:arc:episode:southparkstudios.com:%s'
 
+RE_B = Regex('(&__b__=)\d+')
+
 ####################################################################################################
 def NormalizeURL(url):
 
@@ -64,8 +66,8 @@ def MediaObjectsForURL(url):
 
 		for rendition in json_obj['package']['video']['item'][0]['rendition']:
 
-			hls_url = rendition['src']
-			bitrate = '1200'
+			bitrate = str(int(round(int(rendition['rdmaxkbps']), -2)))
+			hls_url = RE_B.sub(r'\g<1>%s' % (bitrate), rendition['src'])
 
 			if bitrate not in available_streams:
 				available_streams[bitrate] = []

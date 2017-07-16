@@ -68,7 +68,7 @@ def MediaObjectsForURL(url):
 
 		for rendition in json_obj['package']['video']['item'][0]['rendition']:
 
-			bitrate = rendition['rdmaxkbps']
+			bitrate = str(int(round(int(rendition['rdmaxkbps']), -2)))
 			hls_url = RE_B.sub(r'\g<1>%s' % (bitrate), rendition['src'])
 
 			if bitrate not in available_streams:
