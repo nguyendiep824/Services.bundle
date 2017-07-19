@@ -9,6 +9,7 @@ NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
 
 MGID_FORMAT = 'mgid:arc:%s:%s:%s'
 RE_MANIFEST_FEED = Regex('var triforceManifestFeed = (.+?);\n', Regex.DOTALL)
+RE_B = Regex('(&__b__=)\d+')
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -89,7 +90,7 @@ def MediaObjectsForURL(url):
 
             # Make sure their are values for the video part
             try:
-                part_hls_url = hls_data.xpath('//rendition/src/text()')[0]
+                part_hls_url = RE_B.sub(r'\g<1>5000', hls_data.xpath('//rendition/src/text()')[0])
                 part_duration = hls_data.xpath('//rendition/@duration')[0]
             except: continue
 
