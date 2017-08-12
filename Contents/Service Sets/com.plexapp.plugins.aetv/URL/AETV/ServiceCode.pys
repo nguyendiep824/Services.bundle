@@ -24,7 +24,8 @@ def MetadataObjectForURL(url):
 
   if data['AETN$mrssLengthType'] == "Episode":
 
-    show = data['AETN$seriesNameGlobal']
+    try: show = data['AETN$seriesNameGlobal']
+    except: show = data['AANDE$seriesName']
     index = int(data['AETN$episode']) if 'AETN$episode' in data else None
 
     return EpisodeObject(
