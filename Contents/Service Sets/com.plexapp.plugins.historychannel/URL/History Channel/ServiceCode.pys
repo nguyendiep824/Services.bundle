@@ -1,33 +1,13 @@
 from hashlib import sha1
 import binascii, hmac
 
-RE_MEDIA_URL = Regex("var media_url = '(.+?)';", Regex.DOTALL)
-RE_BASE = Regex('meta base="(rtmp.+)"')
-
 SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
 SMIL_DETAILS = '?assetTypes=medium_video_ak&formats=m3u,mpeg4&format=SMIL'
 
-AudioStreamObject.language_code = Locale.Language.English
 ####################################################################################################
 def NormalizeURL(url):
 
   return url.split('?')[0]
-
-####################################################################################################
-def TestURLs():
-
-  test_urls = []
-  data = HTML.ElementFromURL('http://www.aetv.com/video')
-
-  for url in data.xpath('//ul[contains(@class,"full-episode-ul")]/li//a/@href'):
-    if not url.startswith('http:'):
-      url = 'http://www.aetv.com' + url
-    test_urls.append(url)
-
-    if len(test_urls) > 2:
-      break
-
-  return test_urls
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -35,9 +15,7 @@ def MetadataObjectForURL(url):
   releaseURL = '%s?format=script' % GetSMIL(url)
   data = JSON.ObjectFromURL(releaseURL)
 
-  thumb = data['defaultThumbnailUrl']
-  thumb_large = thumb.replace('_small.jpg', '_HD_768x432-16x9.jpg')
-
+  thumb = data['defaultThumbnailUrl'] if 'defaultThumbnailUrl' in data else ''
   summary = data['description']
   duration = data['duration']
   date = Datetime.FromTimestamp(float(data['pubDate'])/1000).date()
@@ -45,7 +23,9 @@ def MetadataObjectForURL(url):
   title = data['title']
 
   if data['AETN$mrssLengthType'] == "Episode":
-    show = data['history$seriesName']
+
+    try: show = data['AETN$seriesNameGlobal']
+    except: show = data['history$seriesName']
     index = int(data['AETN$episode']) if 'AETN$episode' in data else None
 
     return EpisodeObject(
@@ -56,7 +36,7 @@ def MetadataObjectForURL(url):
       duration = duration,
       originally_available_at = date,
       content_rating = content_rating,
-      thumb = Resource.ContentsOfURLWithFallback([thumb_large, thumb])
+      thumb = Resource.ContentsOfURLWithFallback(url=thumb)
     )
   else:
     return VideoClipObject(
@@ -71,31 +51,21 @@ def MetadataObjectForURL(url):
 ####################################################################################################
 def MediaObjectsForURL(url):
 
-  media_objects = []
-
-  for bitrate, resolution in [(1918, '540'), (1423, '432'), (1123, '360')]:
-    media_objects.append(
-      MediaObject(
-        parts = [
-          PartObject(
-            key=Callback(PlayVideo, url=url, bitrate=bitrate)
-          )
-        ],
-        protocol = 'hls',
-        container = 'mpegts',
-        video_resolution = resolution,
-        video_codec = VideoCodec.H264,
-        audio_channels = 2,
-        optimized_for_streaming = True,
-        audio_codec = AudioCodec.AAC
-      )
+  return [
+    MediaObject(
+      protocol = 'hls',
+      container = 'mpegts',
+      parts = [
+        PartObject(
+          key=HTTPLiveStreamURL(Callback(PlayVideo, url=url))
+        )
+      ]
     )
-
-  return media_objects
+  ]
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, bitrate=1918, **kwargs):
+def PlayVideo(url, **kwargs):
 
   url = URLService.NormalizeURL(url)
 
@@ -109,14 +79,8 @@ def PlayVideo(url, bitrate=1918, **kwargs):
   if smil.xpath('//a:ref', namespaces=SMIL_NS)[0].get('title') == "Geographic Restriction":
     raise Ex.MediaGeoblocked
 
-  available_versions = smil.xpath('//a:video/@system-bitrate', namespaces=SMIL_NS)
-  closest = min((abs((bitrate*1000) - int(i)), int(i)) for i in available_versions)[1]
-
-  video_url = smil.xpath('//a:video[@system-bitrate="%s"]/@src' % (closest), namespaces=SMIL_NS)[0]
-
-  # now if we still don't have a video_url bail
-  if not video_url:
-    raise Ex.MediaNotAvailable
+  try: video_url = smil.xpath('//a:video/@src', namespaces=SMIL_NS)[0]
+  except: raise Ex.MediaNotAvailable
 
   if video_url.split('?')[0].endswith('m3u8'):
     return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(video_url))
@@ -134,18 +98,16 @@ def GetSMIL(url):
   except:
     raise Ex.MediaExpired
 
-  try: SMIL_URL = RE_MEDIA_URL.search(content).group(1)
-  except: raise Ex.MediaNotAvailable
   html = HTML.ElementFromString(content)
-  blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
-
+  try: blocked = html.xpath('//meta[@name="aetn:isBehindWall"]/@content')[0]
+  except: blocked = 'false'
   if blocked=='true':
     raise Ex.MediaNotAuthorized
   else:
-    return SMIL_URL
+    try: SMIL_URL = html.xpath('//@data-media-url')[0]
+    except: raise Ex.MediaNotAvailable
 
-  raise Ex.MediaNotAvailable
-
+  return SMIL_URL
 ####################################################################################################
 def sign_url(url):
 
