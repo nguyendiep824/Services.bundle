@@ -10,7 +10,7 @@
 			<array>
 				<string>^http://www.history.com/(shows|topics)/.+/videos/.+</string>
 				<string>^http://www.history.com/videos/.+</string>
-				<string>^http:\/\/www\.history\.com\/shows\/[^\/]+\/season-\d{1,2}\/episode-\d{1,2}(.+)?</string>
+				<string>^http:\/\/www\.history\.com\/shows\/[^\/]+\/season-\d{1,4}\/episode-\d{1,2}(.+)?</string>
 			</array>
 		</dict>
 	</dict>
