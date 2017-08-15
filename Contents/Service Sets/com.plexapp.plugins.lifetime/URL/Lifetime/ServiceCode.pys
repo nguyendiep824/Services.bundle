@@ -55,6 +55,7 @@ def MediaObjectsForURL(url):
     MediaObject(
       protocol = 'hls',
       container = 'mpegts',
+      video_resolution = 540,
       parts = [
         PartObject(
           key=HTTPLiveStreamURL(Callback(PlayVideo, url=url))
