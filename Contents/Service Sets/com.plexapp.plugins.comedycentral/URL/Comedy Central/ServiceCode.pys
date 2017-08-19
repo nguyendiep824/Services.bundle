@@ -1,5 +1,4 @@
 META_URL = 'http://media.mtvnservices.com/pmt/e1/access/index.html?uri=%s&configtype=edge'
-MEDIA_URL = 'http://media-utils.mtvnservices.com/services/MediaGenerator/%s?device=iPad&format=json'
 URI = 'mgid:arc:%s:comedycentral.com:%s'
 
 RE_ID = Regex('ccnetworkapp\/(?P<type>episode|video)\/(?P<uuid>[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
@@ -44,7 +43,7 @@ def MetadataObjectForURL(url):
 def MediaObjectsForURL(url):
 
 	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
-	available_streams = {}
+	available_streams = []
 
 	# Check for geoblocks or errors
 	if not 'items' in json_obj:
@@ -61,52 +60,50 @@ def MediaObjectsForURL(url):
 		if item['duration'] < 8:
 			continue
 
-		json_obj = JSON.ObjectFromURL(MEDIA_URL % (item['guid']), cacheTime=CACHE_1HOUR)
+		media_url = item['group']['content'].replace('{device}', 'iPad') + '&format=json'
+		if media_url.startswith('//'):
+			media_url = 'https:' + media_url
+
+		json_obj = JSON.ObjectFromURL(media_url, cacheTime=CACHE_1HOUR)
 
 		if not 'rendition' in json_obj['package']['video']['item'][0]:
 			continue
 
-		for rendition in json_obj['package']['video']['item'][0]['rendition']:
+		try:
 
-			bitrate = str(int(round(int(rendition['rdmaxkbps']), -2)))
-			hls_url = RE_B.sub(r'\g<1>%s' % (bitrate), rendition['src'])
+			part_hls_url = RE_B.sub(r'\g<1>5000', json_obj['package']['video']['item'][0]['rendition'][0]['src'])
+			part_duration = json_obj['package']['video']['item'][0]['rendition'][0]['duration']
 
-			if bitrate not in available_streams:
-				available_streams[bitrate] = []
+		except: continue
+		# Create part for the video section
+		part = {'duration' : part_duration, 'hls_url': part_hls_url}
+		available_streams.append(part)
 
-			part = {}
-			part['hls_url'] = hls_url
-			part['duration'] = rendition['duration']
-
-			available_streams[bitrate].append(part)
+	# If there are no HLS streams, return MediaNotAvailable error
+	if len(available_streams)<1:
+		raise Ex.MediaNotAvailable
 
 	media_objects = []
-	bitrates = [int(i) for i in available_streams.keys()]
-	bitrates.sort(reverse=True)
+	# Build media objects for hls videos
+	parts = []
+	for part in available_streams:
 
-	for bitrate in bitrates:
-
-		parts = []
-
-		for part in available_streams[str(bitrate)]:
-
-			parts.append(
-				PartObject(
-					key = HTTPLiveStreamURL(
-						url = part['hls_url']
-					),
-					duration = int(part['duration'])*1000
-				)
-			)
-
-		media_objects.append(
-			MediaObject(
-				parts = parts,
-				bitrate = bitrate,
-				video_resolution = 720,
-				audio_channels = 2
+		parts.append(
+			PartObject(
+				key = HTTPLiveStreamURL(part['hls_url']),
+				duration = int(part['duration'])*1000
 			)
 		)
+
+	media_objects.append(
+		MediaObject(
+			parts = parts,
+			protocol = 'hls',
+			container = 'mpegts',
+			video_resolution = 720,
+			audio_channels = 2
+		)
+	)
 
 	return media_objects
 
