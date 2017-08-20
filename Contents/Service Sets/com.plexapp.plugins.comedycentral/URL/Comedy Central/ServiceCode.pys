@@ -43,7 +43,7 @@ def MetadataObjectForURL(url):
 def MediaObjectsForURL(url):
 
 	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
-	available_streams = []
+	part_objects = []
 
 	# Check for geoblocks or errors
 	if not 'items' in json_obj:
@@ -70,42 +70,28 @@ def MediaObjectsForURL(url):
 			continue
 
 		try:
-
 			part_hls_url = RE_B.sub(r'\g<1>5000', json_obj['package']['video']['item'][0]['rendition'][0]['src'])
 			part_duration = json_obj['package']['video']['item'][0]['rendition'][0]['duration']
 
-		except: continue
-		# Create part for the video section
-		part = {'duration' : part_duration, 'hls_url': part_hls_url}
-		available_streams.append(part)
+			part_objects.append(
+				PartObject(
+					key = HTTPLiveStreamURL(part_hls_url),
+					duration = int(part_duration)*1000
+				)
+			)
+		except:
+			continue
 
-	# If there are no HLS streams, return MediaNotAvailable error
-	if len(available_streams)<1:
+	if len(part_objects) < 1:
 		raise Ex.MediaNotAvailable
 
-	media_objects = []
-	# Build media objects for hls videos
-	parts = []
-	for part in available_streams:
-
-		parts.append(
-			PartObject(
-				key = HTTPLiveStreamURL(part['hls_url']),
-				duration = int(part['duration'])*1000
-			)
-		)
-
-	media_objects.append(
+	return [
 		MediaObject(
-			parts = parts,
-			protocol = 'hls',
-			container = 'mpegts',
+			parts = part_objects,
 			video_resolution = 720,
 			audio_channels = 2
 		)
-	)
-
-	return media_objects
+	]
 
 ####################################################################################################
 def GetURI(url):
