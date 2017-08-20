@@ -41,7 +41,7 @@ def MetadataObjectForURL(url):
 def MediaObjectsForURL(url):
 
 	json_obj = JSON.ObjectFromURL(META_URL % (GetURI(url)), cacheTime=CACHE_1HOUR, headers={'Referer': url})['feed']
-	parts = []
+	part_objects = []
 
 	# Check for geoblocks or errors
 	if not 'items' in json_obj:
@@ -70,23 +70,18 @@ def MediaObjectsForURL(url):
 		try:
 			part_hls_url = RE_B.sub(r'\g<1>5000', json_obj['package']['video']['item'][0]['rendition'][0]['src'])
 			part_duration = json_obj['package']['video']['item'][0]['rendition'][0]['duration']
+
+			part_objects.append(
+				PartObject(
+					key = HTTPLiveStreamURL(part_hls_url),
+					duration = int(part_duration)*1000
+				)
+			)
 		except:
 			continue
 
-		parts.append({"hls_url": part_hls_url, "duration": part_duration})
-
-	if len(parts) < 1:
+	if len(part_objects) < 1:
 		raise Ex.MediaNotAvailable
-
-	part_objects = []
-
-	for part in parts:
-		part_objects.append(
-			PartObject(
-				key = HTTPLiveStreamURL(part['hls_url']),
-				duration = int(part['duration'])*1000
-			)
-		)
 
 	return [
 		MediaObject(
