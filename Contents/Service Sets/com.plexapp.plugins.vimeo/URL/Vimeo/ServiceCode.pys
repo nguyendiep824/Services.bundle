@@ -92,7 +92,14 @@ def MediaObjectsForURL(url):
 			video_resolution = video_resolution,
 			bitrate = bitrate,
 			audio_channels = 2
-		) for video_resolution, bitrate in [(1080, 6000), (720, 3000), (540, 1800), (360, 1000)]
+		) for video_resolution, bitrate in [
+			(2160, 30000),
+			(1440, 15000),
+			(1080, 6000),
+			(720, 3000),
+			(540, 1800),
+			(360, 1000)
+		]
 	]
 
 ####################################################################################################
