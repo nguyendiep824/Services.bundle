@@ -1,18 +1,17 @@
 VIDGUID_URL = 'https://api.nbc.com/v3.14/videos?filter[guid]=%s&include=image'
-NAMESPACES = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
+NAMESPACES = {"a": "http://www.w3.org/2005/SMIL21/Language"}
 
 SMIL_EXT = '&policy=43674&formats=m3u,mpeg4&format=SMIL&embedded=true'
 
-RE_VIDEO_GUID = Regex('^http:\/\/www\.nbc\.com\/.+\/video\/.+\/(\d{7})')
-RE_VIDEO_GUID2 = Regex('"guid":"(.+?)",')
+RE_VIDEO_GUID_URL = Regex('\/video\/.+\/(\d{7})')
+RE_VIDEO_GUID_BODY = Regex('"guid":"(.+?)"')
+
+HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8"}
 
 ####################################################################################################
 def NormalizeURL(url):
 
-	if '#' in url and '|' in url and not '?' in url:
-		return url
-
-	return url.split('#')[0].split('?')[0]
+	return url.split('?')[0]
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -26,8 +25,10 @@ def MetadataObjectForURL(url):
 		if item.startswith('Series'):
 			show = item.split('Series/')[1]
 			break
+
 	try: index = int(episode['attributes']['episodeNumber'])
 	except: index = None
+
 	try: season = int(episode['attributes']['seasonNumber'])
 	except: season = None
 
@@ -36,7 +37,7 @@ def MetadataObjectForURL(url):
 	title = episode['attributes']['title']
 	summary = episode['attributes']['description']
 
-	try: thumb = 'http://www.nbc.com' + json['included'][0]['attributes']['path']
+	try: thumb = 'https://www.nbc.com' + json['included'][0]['attributes']['path']
 	except: thumb = ''
 
 	if show and season and index:
@@ -53,6 +54,7 @@ def MetadataObjectForURL(url):
 		)
 
 	else:
+
 		return VideoClipObject(
 			title = title,
 			summary = summary,
@@ -71,10 +73,6 @@ def MediaObjectsForURL(url):
 					key=HTTPLiveStreamURL(Callback(PlayVideo, url=url))
 				)
 			],
-			protocol = 'hls',
-			container = 'mpegts',
-			audio_codec = AudioCodec.AAC,
-			video_codec = VideoCodec.H264,
 			audio_channels = 2,
 			optimized_for_streaming = True
 		)
@@ -90,12 +88,11 @@ def PlayVideo(url, **kwargs):
 	smil_url = episode['attributes']['mediaUrl'] + SMIL_EXT
 
 	try: 
-		smil = XML.ElementFromURL(smil_url)
+		smil = XML.ElementFromURL(smil_url, headers=HTTP_HEADERS)
 	except: 
 		raise Ex.MediaNotAvailable
 
 	videos =  smil.xpath('//a:video/@src', namespaces=NAMESPACES)
-	#Log('the value of videos is %s' %videos)
 
 	if len(videos) < 1:
 		raise Ex.MediaNotAvailable
@@ -107,22 +104,19 @@ def PlayVideo(url, **kwargs):
 ####################################################################################################
 def GetMediaData(url):
 
-	#Log('the value of the url is %s' %url)
-	try: 
-		video_guid = RE_VIDEO_GUID.search(url).group(1)
-	except: 
-		try:
-			page = HTTP.Request(url, cacheTime=CACHE_1HOUR).content
-			video_guid = RE_VIDEO_GUID2.search(page).group(1)
-		except:
-			raise Ex.MediaNotAvailable
+	video_guid = RE_VIDEO_GUID_URL.search(url)
 
-	#Log('the value of the video_guid is %s' %video_guid)
-	video_api = VIDGUID_URL %video_guid
+	if not video_guid:
 
-	try: 
-		json = JSON.ObjectFromURL(video_api)
-	except: 
+		page = HTTP.Request(url, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR).content
+		video_guid = RE_VIDEO_GUID_BODY.search(page)
+
+	if not video_guid:
 		raise Ex.MediaNotAvailable
 
-	return json
+	video_api = VIDGUID_URL % (video_guid.group(1))
+
+	try: 
+		return JSON.ObjectFromURL(video_api, headers=HTTP_HEADERS, cacheTime=CACHE_1HOUR)
+	except: 
+		raise Ex.MediaNotAvailable
