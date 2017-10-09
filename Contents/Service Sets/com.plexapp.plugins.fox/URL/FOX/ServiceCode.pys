@@ -32,6 +32,7 @@ def MediaObjectsForURL(url):
 	return [
 		MediaObject(
 			audio_channels = 2,
+			video_resolution = '1080',
 			optimized_for_streaming = True,
 			parts = [
 				PartObject(
