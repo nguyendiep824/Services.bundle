@@ -42,10 +42,16 @@ def MetadataObjectForURL(url):
 
 ####################################################################################################
 def MediaObjectsForURL(url):
+
 	return [
 		MediaObject(
+			audio_channels = 2,
+			video_resolution = 720,
+			optimized_for_streaming = True,
 			parts = [
-				PartObject(key=HTTPLiveStreamURL(Callback(PlayHLS, url=url)))
+				PartObject(
+					key = HTTPLiveStreamURL(Callback(PlayHLS, url=url))
+				)
 			]
 		)
 	]
