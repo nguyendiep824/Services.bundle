@@ -139,7 +139,7 @@ def PlayVideo(url, **kwargs):
         except:
             raise Ex.MediaNotAvailable
 
-    return IndirectResponse(VideoClipObject, key=video_url)
+    raise Ex.MediaNotAvailable
 
 ####################################################################################################
 def GetPID(url):
