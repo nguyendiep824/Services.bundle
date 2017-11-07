@@ -117,6 +117,8 @@ def PlayVideo(url, **kwargs):
             except:
                 if 'GeoLocationBlocked' in data:
                     raise Ex.MediaGeoblocked
+                else:
+                    raise Ex.MediaNotAvailable
 
         except Ex.RedirectError, e:
 
