@@ -15,6 +15,8 @@ https://hgtv-vh.akamaihd.net/i/371/1019/HGTV_HawaiiLife_E803.mp4,,.csmil/master.
 '''
 
 FEED_URL = 'http://feed.theplatform.com/f/dtjsEC/EAlt6FfQ_kCX/{}'
+RE_CLEANUP_M3U8 = Regex('#.+?RESOLUTION=(?!960x540).+?(\n)?.+?\.m3u8.*?\n')
+RE_FIX_RELATIVE = Regex('("|^)(?!https?:\/\/)([^"\n]+\.m3u8[^"\n]*)', Regex.MULTILINE)
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -88,7 +90,6 @@ def MediaObjectsForURL(url):
     ]
 
 ####################################################################################################
-@indirect
 def PlayVideo(url, **kwargs):
 
     pid = GetPID(url)
@@ -114,6 +115,7 @@ def PlayVideo(url, **kwargs):
 
             try:
                 video_url = xml.xpath('//a:video/@src', namespaces={'a': 'http://www.w3.org/2005/SMIL21/Language'})[0]
+                return GetData(video_url)
             except:
                 if 'GeoLocationBlocked' in data:
                     raise Ex.MediaGeoblocked
@@ -124,12 +126,14 @@ def PlayVideo(url, **kwargs):
 
             if 'Location' in e.headers:
 
-                master_playlist = GetData(e.headers['Location'])
-                sub_playlist = Regex('RESOLUTION=960x540.+\n(.+\.m3u8)').search(master_playlist).group(1)
                 base_url = e.headers['Location'].rsplit('/', 1)[0]
 
-                video_url = '%s/%s' % (base_url, sub_playlist)
+                playlist = GetData(e.headers['Location'])
+                playlist = RE_CLEANUP_M3U8.sub('', playlist)
 
+                playlist = RE_FIX_RELATIVE.sub('%s%s/%s' % ('\\1', base_url, '\\2'), playlist)
+
+                return playlist
             else:
                 raise Ex.MediaNotAvailable
         except:
