@@ -2,7 +2,6 @@ MRSS_URL = 'http://www.tvland.com/feeds/mrss/?uri=%s'
 NAMESPACES = {'media': 'http://search.yahoo.com/mrss/'}
 
 MGID_FORMAT = 'mgid:arc:tvland.com:%s:%s'
-RE_MANIFEST_FEED = Regex('var triforceManifestFeed = (.+?);', Regex.DOTALL)
 RE_B = Regex('(&__b__=)\d+')
 
 ####################################################################################################
@@ -120,8 +119,7 @@ def MediaObjectsForURL(url):
 def GetRSS(url):
 
     try:
-        content = HTTP.Request(url).content
-        json = JSON.ObjectFromString(RE_MANIFEST_FEED.search(content).group(1))
+        json = JSON.ObjectFromURL('http://www.tvland.com/feeds/triforce/manifest/v8?url=%s' %url)
     except:
         raise Ex.MediaNotAvailable
 
