@@ -1,7 +1,7 @@
 RE_PID = Regex("video\.settings\.pid = '(?P<pid>[^']+)';")
 VIDEO_XML = 'http://link.theplatform.com/s/dJ5BDC/%s?format=SMIL&Tracking=true&mbr=true'
 SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
-CBS_SWF = 'http://www.cbs.com/thunder/player/1_0/chromeless/1_5_1/CAN.swf'
+CBS_SWF = 'http://can.cbs.com/thunder/player/chrome/cbscom/prod/vod/canplayer.swf'
 
 ####################################################################################################
 def NormalizeURL(url):
