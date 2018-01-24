@@ -56,6 +56,7 @@ def PlayVideo(url, **kwargs):
 
 	json_obj = GetJSON(url)
 	m3u8_master_url = json_obj['m3u8']
+	m3u8_master_base_url = ''
 
 	if m3u8_master_url.startswith('/'):
 		m3u8_master_url = 'https://www.cnet.com' + m3u8_master_url
