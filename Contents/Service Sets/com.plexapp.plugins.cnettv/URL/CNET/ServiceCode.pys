@@ -79,17 +79,15 @@ def PlayVideo(url, **kwargs):
 def GetJSON(url):
 
 	html = HTML.ElementFromURL(url)
-	json = html.xpath('//div[@class="videoPlayer"]/@data-cnet-video-options')
+	json = html.xpath('//div[@data-video-player-options]/@data-video-player-options')
 
 	if len(json) < 1:
 		raise Ex.MediaNotAvailable
 
 	json_obj = JSON.ObjectFromString(json[0])
 
-	if 'video' in json_obj and json_obj['video'] is not None:
-		json_obj = json_obj['video']
-	elif 'videos' in json_obj and json_obj['videos'] is not None:
-		json_obj = json_obj['videos'][0]
+	if 'playlist' in json_obj and json_obj['playlist'] is not None and len(json_obj['playlist']) > 0:
+		json_obj = json_obj['playlist'][0]
 	else:
 		raise Ex.MediaNotAvailable
 
