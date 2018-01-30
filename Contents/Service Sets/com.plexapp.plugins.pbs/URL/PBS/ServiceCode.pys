@@ -23,10 +23,25 @@ def MetadataObjectForURL(url):
     except:
         airdate = None
 
+    try:
+        duration_parts = html.xpath('//span[@class="video-player__info__meta"]/text()')[0].split(' | ')[-1].strip().split(' ')
+        duration = 0
+
+        for value in duration_parts:
+            if 'h' in value:
+                duration += int(value.strip('h')) * 60 * 60 * 1000
+            elif 'm' in value:
+                duration += int(value.strip('m')) * 60 * 1000
+            elif 's' in value:
+                duration += int(value.strip('s')) * 1000
+    except:
+        duration = None
+
     return VideoClipObject(
         title = title,
         summary = summary,
         originally_available_at = airdate,
+        duration = duration,
         thumb = Resource.ContentsOfURLWithFallback(url=thumb)
     )
 
