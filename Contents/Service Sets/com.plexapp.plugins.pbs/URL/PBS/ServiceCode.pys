@@ -1,5 +1,8 @@
 RE_VIDEO_ID = Regex("id: '(\d+)'")
-RE_VIDEO_URL = Regex("recommended_encoding.*'url': '([^']+)'", Regex.DOTALL)
+RE_VIDEO_URL = Regex('recommended_encoding.*"url": "([^"]+)"', Regex.DOTALL)
+
+RE_CLEANUP_M3U8 = Regex('#.+?RESOLUTION=(?!1280x720).+?(\n)?.+?\.m3u8.*?\n')
+RE_FIX_RELATIVE = Regex('("|^)(?!https?:\/\/)([^"\n]+\.m3u8[^"\n]*)', Regex.MULTILINE)
 
 PLAYER_URL = 'http://player.pbs.org/portalplayer/%s/'
 
@@ -50,11 +53,14 @@ def MediaObjectsForURL(url):
 
     return [
         MediaObject(
+            video_codec = VideoCodec.H264,
+            audio_codec = AudioCodec.AAC,
+            container = Container.MP4,
+            video_resolution = '720',
             audio_channels = 2,
             optimized_for_streaming = True,
-            video_resolution = 'sd',
             parts = [
-                PartObject(key=HTTPLiveStreamURL(Callback(PlayVideo, url=url)))
+                PartObject(key=Callback(PlayVideo, url=url))
             ]
         )
     ]
@@ -67,11 +73,12 @@ def PlayVideo(url, **kwargs):
     video_id = RE_VIDEO_ID.search(page).group(1)
 
     page = HTTP.Request(PLAYER_URL % (video_id)).content
-    redirect_url = RE_VIDEO_URL.search(page).group(1)
+    redirect_url = RE_VIDEO_URL.search(page).group(1).replace('https://', 'http://')
 
     json_obj = JSON.ObjectFromURL('%s?format=json' % (redirect_url))
 
     if 'status' in json_obj and json_obj['status'] == 'ok':
-        return IndirectResponse(VideoClipObject, key=json_obj['url'])
+        video_url = json_obj['url'].replace('-16x9-720p.m3u8', '-mp4-720p-3000k.mp4')
+        return IndirectResponse(VideoClipObject, key=video_url)
     else:
         raise Ex.MediaNotAvailable
