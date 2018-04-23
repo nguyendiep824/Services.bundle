@@ -49,7 +49,7 @@ def MediaObjectsForURL(url):
 					key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
 				)
 			],
-			video_resolution = 'sd',
+			video_resolution = '1080',
 			audio_channels = 2,
 			optimized_for_streaming = True
 		)
@@ -66,7 +66,7 @@ def PlayVideo(url, **kwargs):
 
 	for flavor in json_obj['flavors']:
 
-		if flavor['format'] == 'applehttp':
+		if flavor['format'] in ['applehttp', 'hls']:
 
 			return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(flavor['url']))
 
