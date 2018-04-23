@@ -12,12 +12,12 @@ def NormalizeURL(url):
 def MetadataObjectForURL(url):
 
     pid = RE_PID.findall(url)[0]
-    programme = JSON.ObjectFromURL('http://www.bbc.co.uk/programmes/%s.json' % (pid), headers=HTTP_HEADERS)['programme']
+    programme = JSON.ObjectFromURL('https://www.bbc.co.uk/programmes/%s.json' % (pid), headers=HTTP_HEADERS)['programme']
 
     if 'image' in programme and 'pid' in programme['image'] and programme['image']['pid']:
-        thumb = 'http://ichef.bbci.co.uk/programmeimages/%s/%s_640_360.jpg' % (programme['image']['pid'], pid)
+        thumb = 'https://ichef.bbci.co.uk/programmeimages/%s/%s_640_360.jpg' % (programme['image']['pid'], pid)
     else:
-        thumb = 'http://node2.bbcimg.co.uk/iplayer/images/episode/%s_640_360.jpg' % (pid)
+        thumb = 'https://node2.bbcimg.co.uk/iplayer/images/episode/%s_640_360.jpg' % (pid)
 
     if 'long_synopsis' in programme and programme['long_synopsis']:
         summary = programme['long_synopsis']
@@ -193,12 +193,12 @@ def GetMaxBitrateURL(stream_details):
 def TestURLs():
 
     test_urls = []
-    data = HTML.ElementFromURL('http://www.bbc.co.uk/iplayer')
+    data = HTML.ElementFromURL('https://www.bbc.co.uk/iplayer')
 
     for item in data.xpath('//div[contains(@class, "most-popular")]//li/a'):
         video_url = item.get('href')
         if video_url.startswith('/'):
-            video_url = 'http://www.bbc.co.uk' + video_url
+            video_url = 'https://www.bbc.co.uk' + video_url
 
             test_urls.append(video_url)
 
