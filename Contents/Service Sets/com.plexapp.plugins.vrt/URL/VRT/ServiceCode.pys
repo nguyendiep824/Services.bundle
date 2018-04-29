@@ -1,8 +1,9 @@
 CM_URL = 'http://%s/cm/%s'
 CM_JSON_URL = '%s?mode=json'
+MZ_URL = 'http://mediazone.vrt.be/api/v1/polopoly/assets/%s'
 CM_ID = Regex('1\.\d+')
 
-HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:26.0) Gecko/20100101 Firefox/26.0'}
+HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6"}
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -109,7 +110,19 @@ def PlayVideo(url, **kwargs):
 	except:
 		raise Ex.MediaExpired
 
-	return IndirectResponse(VideoClipObject, key=json['videoURL'])
+	mzid = json['mediazoneId']
+
+	try:
+		json = JSON.ObjectFromURL(MZ_URL % (mzid), headers=HTTP_HEADERS)
+	except:
+		raise Ex.MediaNotAvailable
+
+	for target in json['targetUrls']:
+
+		if target['type'] != "HLS":
+			continue
+
+		return IndirectResponse(VideoClipObject, key=target['url'])
 
 ####################################################################################################
 def GetHost(url):
