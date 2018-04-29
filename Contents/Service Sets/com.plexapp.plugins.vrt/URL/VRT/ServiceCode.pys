@@ -1,7 +1,14 @@
+import ssl, urllib2
+
 CM_URL = 'http://%s/cm/%s'
 CM_JSON_URL = '%s?mode=json'
 MZ_URL = 'http://mediazone.vrt.be/api/v1/polopoly/assets/%s'
 CM_ID = Regex('1\.\d+')
+
+RE_FIND_VERSIONS = Regex('RESOLUTION=(\d+)x')
+RE_FIX_RELATIVE = Regex('("|^)(?!https?:\/\/)([^"\n]+\.m3u8[^"\n]*)', Regex.MULTILINE)
+
+RE_CLEANUP_M3U8 = '#.+?RESOLUTION=(?!{}).+?(\n)?.+?\.m3u8.*?\n'
 
 HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6"}
 
@@ -86,7 +93,6 @@ def MediaObjectsForURL(url):
 	]
 
 ####################################################################################################
-@indirect
 def PlayVideo(url, **kwargs):
 
 	id = CM_ID.findall(url)
@@ -122,9 +128,30 @@ def PlayVideo(url, **kwargs):
 		if target['type'] != "HLS":
 			continue
 
-		return IndirectResponse(VideoClipObject, key=target['url'])
+		playlist = GetData(target['url'])
+
+		versions = RE_FIND_VERSIONS.findall(playlist)
+		versions.sort(key=int, reverse=True)
+		cleanup_regex = Regex(RE_CLEANUP_M3U8.format(versions[0]))
+		playlist = cleanup_regex.sub('', playlist)
+
+		base_url = target['url'].rsplit('/', 1)[0]
+		playlist = RE_FIX_RELATIVE.sub('%s%s/%s' % ('\\1', base_url, '\\2'), playlist)
+
+		return playlist
+
+	raise Ex.MediaNotAvailable
 
 ####################################################################################################
 def GetHost(url):
 
 	return url.split('/')[2].replace('www.', '')
+
+####################################################################################################
+def GetData(url):
+
+	req = urllib2.Request(url, headers=HTTP_HEADERS)
+	ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+	data = urllib2.urlopen(req, context=ssl_context).read()
+
+	return data
