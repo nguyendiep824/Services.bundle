@@ -1,7 +1,8 @@
-RE_PID = Regex("video\.settings\.pid = '(?P<pid>[^']+)';")
-VIDEO_XML = 'http://link.theplatform.com/s/dJ5BDC/%s?format=SMIL&Tracking=true&mbr=true'
-SMIL_NS = {'a': 'http://www.w3.org/2005/SMIL21/Language'}
-CBS_SWF = 'http://can.cbs.com/thunder/player/chrome/cbscom/prod/vod/canplayer.swf'
+TP_VIDEO = "http://link.theplatform.com/s/dJ5BDC/media/guid/2198311517/{}"
+RE_JSON = Regex("var \$module = (\{.+\});")
+HTTP_HEADERS = {
+	"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_3) AppleWebKit/604.5.6 (KHTML, like Gecko) Version/11.0.3 Safari/604.5.6"
+}
 
 ####################################################################################################
 def NormalizeURL(url):
@@ -11,125 +12,82 @@ def NormalizeURL(url):
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-	try:
-		page = HTTP.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; bingbot/2.0 +http://www.bing.com/bingbot.htm)"}).content
-	except:
+	page = HTTP.Request(url, headers=HTTP_HEADERS, cacheTime=300).content
+	json = RE_JSON.search(page)
+
+	if not json:
+		Log(" --> Unable to find JSON in the page")
 		raise Ex.MediaNotAvailable
 
-	pid = RE_PID.search(page)
+	json_obj = JSON.ObjectFromString(json.group(1))['video']
 
-	if not pid:
+	if json_obj['status'] != "AVAILABLE":
+		Log(" --> Content not available")
 		raise Ex.MediaNotAvailable
 
-	try:
-		xml = XML.ElementFromURL(VIDEO_XML % pid.group('pid'))
-	except:
+	if json_obj['is_paid_content']:
+		Log(" --> Paid content")
 		raise Ex.MediaNotAvailable
 
-	if len(xml.xpath('//a:ref[@title="Geographic Restriction"]', namespaces=SMIL_NS)) > 0:
-		raise Ex.MediaGeoblocked
+	show = json_obj['series_title'] if 'series_title' in json_obj else None
+	title = json_obj['episode_title']
+	summary = json_obj['description']
+	duration = json_obj['duration_raw'] * 1000
+	thumb = json_obj['thumb']['large']
+	airdate = Datetime.ParseDate(json_obj['airdate_iso']).date()
+	season = int(json_obj['season_number']) if 'season_number' in json_obj and json_obj['season_number'].isdigit() else None
+	index = int(json_obj['episode_number']) if 'episode_number' in json_obj and json_obj['episode_number'].isdigit() else None
 
-	title = xml.xpath('//a:switch[1]/a:ref/@title', namespaces=SMIL_NS)[0]
-
-	try: summary = xml.xpath('//a:switch[1]/a:ref/@abstract', namespaces=SMIL_NS)[0]
-	except: summary = None
-
-	duration = xml.xpath('//a:switch[1]/a:ref/@dur', namespaces=SMIL_NS)[0].strip('ms')
-
-	html = HTML.ElementFromString(page)
-
-	thumb = html.xpath('//meta[@property="og:image" and @content!=""]/@content|//meta[@name="twitter:image" and @content!=""]/@content')
-	if len(thumb) > 0:
-		thumb = thumb[0].replace('_140x80.jpg', '_640x360.jpg')
-	else:
-		thumb = ''
-
-	try:
-		air_date = html.xpath('//div[@class="airdate"]/text()')[0].replace('Air Date: ', '')
-		originally_available_at = Datetime.ParseDate(air_date).date()
-	except:
-		originally_available_at = None
-
-	if xml.xpath('//a:switch[1]//a:param[@name="EpisodeFlag"]/@value', namespaces=SMIL_NS)[0] == 'true':
-		show = xml.xpath('//a:switch[1]//a:param[@name="SeriesTitle"]/@value', namespaces=SMIL_NS)[0]
-		title = title.split(' - ', 1)[-1]
-
-		try:
-			season = xml.xpath('//a:switch[1]//a:param[@name="SeasonNumber"]/@value', namespaces=SMIL_NS)[0]
-			episode = xml.xpath('//a:switch[1]//a:param[@name="EpisodeNumber"]/@value', namespaces=SMIL_NS)[0]
-		except:
-			season = None
-			episode = None
-
+	if show and season and index:
 		return EpisodeObject(
 			show = show,
-			season = int(season) if season and season.isdigit() else None,
-			index = int(episode) if episode and episode.isdigit() else None,
+			season = season,
+			index = index,
 			title = title,
 			summary = summary,
-			duration = int(duration),
+			duration = duration,
 			thumb = Resource.ContentsOfURLWithFallback(thumb),
-			originally_available_at = originally_available_at
+			originally_available_at = airdate
 		)
 	else:
 		return VideoClipObject(
 			title = title,
 			summary = summary,
-			duration = int(duration),
+			duration = duration,
 			thumb = Resource.ContentsOfURLWithFallback(thumb),
-			originally_available_at = originally_available_at
+			originally_available_at = airdate
 		)
 
 ####################################################################################################
 def MediaObjectsForURL(url):
 
-	media_objects = []
-	resolution = ['720', '360', '360', '360']
-	bitrate = [2000, 1250, 800, 450]
-
-	for i, res in enumerate(resolution):
-		media_objects.append(
-			MediaObject(
-				video_resolution = res,
-				bitrate = bitrate[i],
-				audio_channels = 2,
-				parts = [
-					PartObject(
-						key = Callback(PlayVideo, url=url, bitrate=bitrate[i])
-					)
-				]
-			)
+	return [
+		MediaObject(
+			parts = [
+				PartObject(
+					key = HTTPLiveStreamURL(Callback(PlayVideo, url=url))
+				)
+			],
+			video_resolution = '1080',
+			audio_channels = 2,
+			optimized_for_streaming = True
 		)
-
-	return media_objects
+	]
 
 ####################################################################################################
 @indirect
-def PlayVideo(url, bitrate=2000, **kwargs):
+def PlayVideo(url, **kwargs):
+
+	id = url.split("/")[6]
 
 	try:
-		page = HTTP.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; bingbot/2.0 +http://www.bing.com/bingbot.htm)"}).content
+		tp = HTTP.Request(TP_VIDEO.format(id), headers=HTTP_HEADERS, follow_redirects=False).content
+	except Ex.RedirectError, e:
+		if 'Location' in e.headers:
+			return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url="{}&__b__=5000".format(e.headers['Location'])))
+		else:
+			Log(" --> No redirect URL found")
+			raise Ex.MediaNotAvailable
 	except:
+		Log(" --> HTTP request for TP failed")
 		raise Ex.MediaNotAvailable
-
-	pid = RE_PID.search(page)
-
-	if not pid:
-		raise Ex.MediaNotAvailable
-
-	xml = XML.ElementFromURL(VIDEO_XML % pid.group('pid'), cacheTime=0)
-	rtmp_url = xml.xpath('//a:meta[starts-with(@base, "rtmp")]/@base', namespaces=SMIL_NS)[0]
-
-	available_bitrates = xml.xpath('//a:switch[1]/a:video/@system-bitrate', namespaces=SMIL_NS)
-	closest = min((abs(int(bitrate) - int(i)/1000), i) for i in available_bitrates)[1]
-
-	clip = xml.xpath('//a:switch[1]/a:video[@system-bitrate="%s"]/@src' % closest, namespaces=SMIL_NS)[0]
-
-	if clip[-4:] == '.mp4':
-		clip = 'mp4:%s' % clip[:-4]
-	else:
-		clip = clip.replace('.flv', '')
-
-	Log(' --> RTMPDump test command line: rtmpdump -r "%s" -y "%s" -W "%s" -o output.flv' % (rtmp_url, clip, CBS_SWF))
-
-	return IndirectResponse(VideoClipObject, key=RTMPVideoURL(url=rtmp_url, clip=clip, swf_url=CBS_SWF))
