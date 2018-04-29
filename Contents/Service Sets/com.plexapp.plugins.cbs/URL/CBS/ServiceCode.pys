@@ -84,10 +84,10 @@ def PlayVideo(url, **kwargs):
 		tp = HTTP.Request(TP_VIDEO.format(id), headers=HTTP_HEADERS, follow_redirects=False).content
 	except Ex.RedirectError, e:
 		if 'Location' in e.headers:
-			if '&' in e.headers['Location']:
-				video_url = "{}&__b__=5000".format(e.headers['Location'])
-			else:
+			if not '?' in e.headers['Location']:
 				video_url = "{}?__b__=5000".format(e.headers['Location'])
+			else:
+				video_url = "{}&__b__=5000".format(e.headers['Location'])
 
 			return IndirectResponse(VideoClipObject, key=HTTPLiveStreamURL(url=video_url))
 		else:
