@@ -1,8 +1,8 @@
 import ssl, urllib2
 
-CM_URL = 'http://%s/cm/%s'
-CM_JSON_URL = '%s?mode=json'
-MZ_URL = 'http://mediazone.vrt.be/api/v1/polopoly/assets/%s'
+CM_URL = 'http://{}/cm/{}'
+CM_JSON_URL = '{}?mode=json'
+MZ_URL = 'http://mediazone.vrt.be/api/v1/polopoly/assets/{}'
 CM_ID = Regex('1\.\d+')
 
 RE_FIND_VERSIONS = Regex('RESOLUTION=(\d+)x')
@@ -20,7 +20,7 @@ def NormalizeURL(url):
 	if len(id) < 1:
 		return url.split('?')[0]
 
-	return 'http://%s/permalink/%s' % (GetHost(url), id[0])
+	return 'http://{}/permalink/{}'.format(GetHost(url), id[0])
 
 ####################################################################################################
 def MetadataObjectForURL(url):
@@ -40,8 +40,8 @@ def MetadataObjectForURL(url):
 		else:
 			id = CM_ID.findall(permalink[0])
 
-	cm_url_html = CM_URL % (GetHost(url), id[0])
-	cm_url_json = CM_JSON_URL % (cm_url_html)
+	cm_url_html = CM_URL.format(GetHost(url), id[0])
+	cm_url_json = CM_JSON_URL.format(cm_url_html)
 
 	html = HTML.ElementFromString(HTTP.Request(cm_url_html, headers=HTTP_HEADERS).content.replace('&ndash;', '-'))
 
@@ -62,7 +62,7 @@ def MetadataObjectForURL(url):
 	thumb = json['imageData']['imageURL']
 
 	if not thumb.startswith('http://'):
-		thumb = 'http://%s/%s' % (GetHost(url), thumb.lstrip('/'))
+		thumb = 'http://{}/{}'.format(GetHost(url), thumb.lstrip('/'))
 
 	try:
 		summary = html.xpath('//div[@class="videoarticle-description"]/p/text()')[0]
@@ -108,8 +108,8 @@ def PlayVideo(url, **kwargs):
 		else:
 			id = CM_ID.findall(permalink[0])
 
-	cm_url_html = CM_URL % (GetHost(url), id[0])
-	cm_url_json = CM_JSON_URL % (cm_url_html)
+	cm_url_html = CM_URL.format(GetHost(url), id[0])
+	cm_url_json = CM_JSON_URL.format(cm_url_html)
 
 	try:
 		json = JSON.ObjectFromURL(cm_url_json, headers=HTTP_HEADERS)
@@ -119,7 +119,7 @@ def PlayVideo(url, **kwargs):
 	mzid = json['mediazoneId']
 
 	try:
-		json = JSON.ObjectFromURL(MZ_URL % (mzid), headers=HTTP_HEADERS)
+		json = JSON.ObjectFromURL(MZ_URL.format(mzid), headers=HTTP_HEADERS)
 	except:
 		raise Ex.MediaNotAvailable
 
@@ -136,7 +136,7 @@ def PlayVideo(url, **kwargs):
 		playlist = cleanup_regex.sub('', playlist)
 
 		base_url = target['url'].rsplit('/', 1)[0]
-		playlist = RE_FIX_RELATIVE.sub('%s%s/%s' % ('\\1', base_url, '\\2'), playlist)
+		playlist = RE_FIX_RELATIVE.sub('{}{}/{}'.format('\\1', base_url, '\\2'), playlist)
 
 		return playlist
 
