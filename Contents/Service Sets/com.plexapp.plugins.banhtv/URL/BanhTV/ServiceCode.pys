@@ -1,0 +1,45 @@
+def MetadataObjectForURL(url):
+    page = HTML.ElementFromURL(url)
+
+    title = page.xpath("//head//meta[@property='og:title']")[0].get('content')
+    description = page.xpath("//head//meta[@name='description']")[0].get('content')
+    thumb = page.xpath("//head//meta[@property='og:image']")[0].get('content')
+
+    return MovieObject(title=title, summary=description, thumb=thumb)
+
+
+def MediaObjectsForURL(url):
+    results = []
+    url = url.replace('http://www.banhtv.com', 'http://banhtv.com')
+    Log(url)
+    object = JSON.ObjectFromURL('http://player.trunguit.net/get?url=' + url)
+    data = object.get('data')
+    Log('hahaha')
+    Log(data)
+    if (data is not None):
+        for d in data:
+            sources = d.get('sources')
+            if sources is not None:
+                for source in sources:
+                    container = source['type'].split("/")[-1]
+                    if (source['label'] not in ["720p", "360p", "1080p", "240p", "1440p"]):
+                        source['label'] = "240p"
+                    source['label'] = source['label'].replace("p", "")
+                    Log("SourceSource")
+                    Log(source)
+                    results.append(
+                        MediaObject(
+                            video_codec=VideoCodec.H264,
+                            audio_codec=AudioCodec.AAC,
+                            container=container,
+                            video_resolution=source['label'],
+                            parts=[PartObject(
+                                key=Callback(PlayVideo, url=source['file'])
+                            )]
+                        )
+                    )
+    return results
+
+
+def PlayVideo(url):
+    return Redirect(url)
